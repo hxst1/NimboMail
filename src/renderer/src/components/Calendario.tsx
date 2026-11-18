@@ -344,7 +344,15 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
             <button
               key={c.id}
               className={`cal-pildora${c.visible ? '' : ' apagada'}`}
-              title={c.error ? `No se pudo actualizar: ${c.error}` : c.tipo === 'invitaciones' ? 'Invitaciones de esta cuenta' : 'Calendario suscrito'}
+              title={
+                c.error
+                  ? `No se pudo actualizar: ${c.error}`
+                  : c.tipo === 'invitaciones'
+                    ? 'Invitaciones de esta cuenta'
+                    : c.tipo === 'propio'
+                      ? 'Tus eventos y notas'
+                      : 'Calendario suscrito'
+              }
               style={{ '--color-cal': c.color } as React.CSSProperties}
               onClick={() => api.mostrarCalendario(c.id, !c.visible).then(cargar)}
               onContextMenu={(e) => {

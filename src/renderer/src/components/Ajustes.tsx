@@ -196,7 +196,7 @@ export function Ajustes(p: {
             <>
               <h2>Calendario</h2>
               <div className="aj-grupo">
-                <label className="aj-interruptor">
+                <div className="aj-fila">
                   <span>Aviso por defecto de las reuniones (invitaciones)</span>
                   <Desplegable<number>
                     valor={avisoReuniones ?? 10}
@@ -209,7 +209,7 @@ export function Ajustes(p: {
                       ...AVISOS.filter((a) => a.minutos <= 1440).map((a) => ({ valor: a.minutos, texto: a.minutos === 0 ? a.texto : `${a.texto} antes` })),
                     ]}
                   />
-                </label>
+                </div>
                 <div className="aj-nota">Cada evento puede tener los suyos con la campana. Los avisos salen como notificación del sistema.</div>
               </div>
               {calendarios.length === 0 && <p className="aj-nota">Todavía no hay calendarios: las invitaciones que te lleguen por correo aparecerán solas.</p>}
@@ -219,7 +219,7 @@ export function Ajustes(p: {
                   <div className="aj-cuenta-datos">
                     <b>{c.nombre}</b>
                     <span>
-                      {c.tipo === 'invitaciones' ? 'Invitaciones recibidas por correo' : 'Calendario suscrito (iCal)'}
+                      {c.tipo === 'invitaciones' ? 'Invitaciones recibidas por correo' : c.tipo === 'propio' ? 'Tus eventos y notas, creados en TuxMail' : 'Calendario suscrito (iCal)'}
                       {c.error ? ` · error: ${c.error}` : c.actualizado ? ` · actualizado ${new Date(c.actualizado).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
                     </span>
                   </div>

@@ -3032,3 +3032,14 @@ a.tb-boton {
 .su-lista-id {
   color: var(--texto-3);
 }
+
+/* Fila de ajustes con un control a la derecha que no es un interruptor (p. ej. un desplegable) */
+.aj-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--texto);
+}
