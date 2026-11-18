@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowClockwise, ArrowLeft, ArrowRight, ArrowsClockwise, EnvelopeSimple, MapPin, Plus, Trash, User, VideoCamera, X } from '@phosphor-icons/react'
-import type { CalendarioInfo, Instancia } from '@shared/tipos'
+import {
+  ArrowClockwise, ArrowLeft, ArrowRight, ArrowsClockwise, Bell, BellSlash, CalendarBlank, CalendarPlus, Check, EnvelopeSimple, LinkSimple, MapPin, NotePencil,
+  PencilSimple, Plus, Trash, User, VideoCamera, X,
+} from '@phosphor-icons/react'
+import { AVISOS, type CalendarioInfo, type Instancia } from '@shared/tipos'
 import { api } from '@/estado'
 import { useInterfaz } from '@/components/MenuContextual'
 
@@ -35,6 +38,15 @@ export function plataforma(enlace: string | null): { nombre: string; color: stri
 /** Color de un evento: el de su plataforma (Meet verde, Teams morado, Zoom azul…) o el de su calendario. */
 export const colorDe = (e: Instancia) => plataforma(e.enlace)?.color ?? e.color
 
+/** «10 minutos y 1 día antes» */
+export function textoAvisos(avisos: number[]): string {
+  if (!avisos.length) return 'Sin avisos'
+  const t = avisos.map((m) => AVISOS.find((a) => a.minutos === m)?.texto ?? `${m} min`)
+  const antes = avisos.some((m) => m > 0)
+  const lista = t.length > 1 ? `${t.slice(0, -1).join(', ')} y ${t.at(-1)}` : t[0]
+  return antes ? `${lista}${avisos.includes(0) && avisos.length === 1 ? '' : ' antes'}`.replace('Al empezar antes', 'al empezar') : lista
+}
+
 const RESPUESTAS: Record<string, string> = {
   'NEEDS-ACTION': 'Sin responder',
   ACCEPTED: 'Aceptada',
@@ -59,6 +71,21 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
     }
   }
   const cancelada = e.estado === 'cancelado'
+  // Avisos de una reunión o un calendario suscrito: se eligen en un menú (uno a la vez se añade o quita).
+  const menuAvisos = (x: number, y: number) =>
+    ui.abrirMenu({
+      x,
+      y,
+      elementos: [
+        ...AVISOS.map((a) => ({
+          etiqueta: a.minutos === 0 ? a.texto : `${a.texto} antes`,
+          icono: e.avisos.includes(a.minutos) ? <Check size={14} weight="bold" /> : <span />,
+          accion: () => api.ponerAvisos(e.id, e.avisos.includes(a.minutos) ? e.avisos.filter((m) => m !== a.minutos) : [...e.avisos, a.minutos]),
+        })),
+        '-' as const,
+        { etiqueta: 'Sin avisos', icono: <BellSlash size={14} />, accion: () => api.ponerAvisos(e.id, []) },
+      ],
+    })
   const puedeResponder = e.esInvitacion && !cancelada && e.miRespuesta !== 'ORGANIZADOR' && !!e.organizador
   const cuando = e.todoElDia
     ? 'Todo el día'
@@ -86,6 +113,16 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
           <ArrowsClockwise size={13} /> Se repite
         </div>
       )}
+      {e.propio && e.descripcion && !compacta && (
+        <div className="et-dato et-nota">
+          <NotePencil size={13} /> {e.descripcion}
+        </div>
+      )}
+      {!cancelada && (
+        <div className="et-dato">
+          {e.avisos.length ? <Bell size={13} /> : <BellSlash size={13} />} {textoAvisos(e.avisos)}
+        </div>
+      )}
       <div className="et-acciones">
         {e.enlace && !cancelada && (
           <button className="et-unirse" onClick={() => api.abrirEnlace(e.enlace!)}>
@@ -98,8 +135,19 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
               {enviando === p ? '…' : { ACCEPTED: 'Aceptar', TENTATIVE: 'Quizá', DECLINED: 'Rechazar' }[p]}
             </button>
           ))}
+        {e.propio && (
+          <button onClick={() => ui.editarEvento(e)}>
+            <PencilSimple size={13} /> Editar
+          </button>
+        )}
+        <span className="et-hueco" />
+        {!cancelada && !e.propio && (
+          <button className="et-icono" title="Avisos" onClick={(ev) => menuAvisos(ev.clientX, ev.clientY)}>
+            <Bell size={14} />
+          </button>
+        )}
         {e.mensaje && onAbrirCorreo && (
-          <button className="et-correo" title="Ver el correo de la invitación" onClick={() => onAbrirCorreo(e.mensaje!)}>
+          <button className="et-icono" title="Ver el correo" onClick={() => onAbrirCorreo(e.mensaje!)}>
             <EnvelopeSimple size={14} />
           </button>
         )}
@@ -149,7 +197,7 @@ function Suscribir({ onCerrar }: { onCerrar: () => void }) {
   )
 }
 
-export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; onAbrirCorreo: (id: string) => void }) {
+export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => void; onAbrirCorreo: (id: string) => void; irA?: number | null }) {
   const ui = useInterfaz()
   const [modo, setModo] = useState<Modo>(() => {
     try {
@@ -158,8 +206,8 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
       return 'mes'
     }
   })
-  const [ancla, setAncla] = useState(() => inicioDia(new Date())) // un día del mes o de la semana que se ve
-  const [seleccion, setSeleccion] = useState(() => inicioDia(new Date()))
+  const [ancla, setAncla] = useState(() => inicioDia(new Date(irA ?? Date.now()))) // un día del mes o de la semana que se ve
+  const [seleccion, setSeleccion] = useState(() => inicioDia(new Date(irA ?? Date.now())))
   const [calendarios, setCalendarios] = useState<CalendarioInfo[]>([])
   const [eventos, setEventos] = useState<Instancia[]>([])
   const [actualizando, setActualizando] = useState(false)
@@ -206,6 +254,7 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
       if (e.key === 'ArrowLeft') mover(-1)
       else if (e.key === 'ArrowRight') mover(1)
       else if (e.key.toLowerCase() === 't') (setAncla(hoy), setSeleccion(hoy))
+      else if (e.key.toLowerCase() === 'n' && !e.ctrlKey) ui.nuevoEvento({ inicio: seleccion.getTime() })
       else if (e.key === 'Escape' && !suscribiendo) onCerrar()
     }
     window.addEventListener('keydown', tecla)
@@ -226,6 +275,25 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
     setActualizando(true)
     await api.actualizarCalendarios().catch(() => {})
     setActualizando(false)
+  }
+
+  // Clic derecho en un día (o en una hora de la semana): crear un evento ahí.
+  const menuDia = (d: Date, x: number, y: number, hora?: number) => {
+    setSeleccion(d)
+    const nombre = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })
+    const elementos = [
+      ...(hora !== undefined
+        ? [
+            {
+              etiqueta: `Nuevo evento a las ${String(Math.floor(hora)).padStart(2, '0')}:${hora % 1 ? '30' : '00'}…`,
+              icono: <CalendarPlus size={15} />,
+              accion: () => ui.nuevoEvento({ inicio: d.getTime() + hora * 3_600_000 }),
+            },
+          ]
+        : [{ etiqueta: `Nuevo evento el ${nombre}…`, icono: <CalendarPlus size={15} />, accion: () => ui.nuevoEvento({ inicio: d.getTime() }) }]),
+      { etiqueta: 'Nuevo evento de todo el día…', icono: <CalendarBlank size={15} />, accion: () => ui.nuevoEvento({ inicio: d.getTime(), todoElDia: true }) },
+    ]
+    ui.abrirMenu({ x, y, elementos })
   }
 
   const menuCalendario = (c: CalendarioInfo, x: number, y: number) =>
@@ -288,7 +356,20 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
             </button>
           ))}
         </div>
-        <button className="cal-boton" title="Suscribirse a un calendario (enlace iCal)" onClick={() => setSuscribiendo(true)}>
+        <button
+          className="cal-boton"
+          title="Nuevo evento o suscribirse a un calendario"
+          onClick={(ev) =>
+            ui.abrirMenu({
+              x: ev.clientX - 180,
+              y: ev.clientY + 14,
+              elementos: [
+                { etiqueta: 'Nuevo evento…', icono: <CalendarPlus size={15} />, atajo: 'N', accion: () => ui.nuevoEvento({ inicio: seleccion.getTime() }) },
+                { etiqueta: 'Suscribirse a un calendario…', icono: <LinkSimple size={15} />, accion: () => setSuscribiendo(true) },
+              ],
+            })
+          }
+        >
           <Plus size={17} />
         </button>
         <button className={`cal-boton${actualizando ? ' girando' : ''}`} title="Actualizar los calendarios" onClick={actualizar}>
@@ -316,7 +397,11 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
                   key={d.getTime()}
                   className={`cal-dia${delMes ? '' : ' fuera'}${mismoDia(d, seleccion) ? ' elegido' : ''}${mismoDia(d, hoy) ? ' hoy' : ''}${evs.length && !delMes ? ' con-eventos' : ''}`}
                   onClick={() => setSeleccion(d)}
-                  onDoubleClick={() => (setSeleccion(d), cambiarModo('semana'))}
+                  onDoubleClick={() => (setSeleccion(d), ui.nuevoEvento({ inicio: d.getTime() }))}
+                  onContextMenu={(ev) => {
+                    ev.preventDefault()
+                    menuDia(d, ev.clientX, ev.clientY)
+                  }}
                 >
                   <span className="cal-numero">{d.getDate()}</span>
                   {evs.slice(0, 3).map((e) => (
@@ -376,7 +461,22 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
                 })
                 const ancho = 100 / Math.max(1, carriles.length)
                 return (
-                  <div key={d.getTime()} className={`cs-columna${mismoDia(d, hoy) ? ' hoy' : ''}`} onClick={() => setSeleccion(d)}>
+                  <div
+                    key={d.getTime()}
+                    className={`cs-columna${mismoDia(d, hoy) ? ' hoy' : ''}`}
+                    onClick={() => setSeleccion(d)}
+                    onDoubleClick={(ev) => {
+                      // Nuevo evento a esa hora (redondeada a la media hora).
+                      const y = ev.clientY - ev.currentTarget.getBoundingClientRect().top
+                      const media = Math.floor((y / HORA_PX) * 2) / 2
+                      ui.nuevoEvento({ inicio: d.getTime() + media * 3_600_000 })
+                    }}
+                    onContextMenu={(ev) => {
+                      ev.preventDefault()
+                      const y = ev.clientY - ev.currentTarget.getBoundingClientRect().top
+                      menuDia(d, ev.clientX, ev.clientY, Math.floor((y / HORA_PX) * 2) / 2)
+                    }}
+                  >
                     {Array.from({ length: 24 }, (_, h) => (
                       <div key={h} className="cs-franja" style={{ height: HORA_PX }} />
                     ))}
@@ -397,6 +497,10 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
                             width: `calc(${ancho}% - 4px)`,
                           } as React.CSSProperties}
                           title={`${hora(e.inicio)}–${hora(e.fin)} ${e.titulo}`}
+                          onDoubleClick={(ev) => {
+                            ev.stopPropagation()
+                            if (e.propio) ui.editarEvento(e)
+                          }}
                         >
                           <b>{hora(e.inicio)}</b> {e.titulo}
                         </div>
@@ -421,7 +525,7 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
       </div>
       <footer className="cal-pie">
         {calendarios.length === 0
-          ? 'Las invitaciones que te lleguen por correo aparecerán aquí. Con «+» puedes suscribirte a otros calendarios por su enlace iCal.'
+          ? 'Las invitaciones que te lleguen por correo aparecerán aquí. Con «+» (o doble clic en un día) creas tus eventos, o te suscribes a un calendario por su enlace iCal.'
           : sinActualizar.length
             ? `No se pudo actualizar: ${sinActualizar.map((c) => c.nombre).join(', ')}`
             : `${calendarios.length} ${calendarios.length === 1 ? 'calendario' : 'calendarios'} · las reuniones también se exportan para otros calendarios del escritorio`}

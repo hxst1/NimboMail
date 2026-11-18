@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CalendarBlank, Columns, GearSix, Info, Key, Rows, SidebarSimple, Trash, UserCircle, X } from '@phosphor-icons/react'
-import type { CalendarioInfo, Carpeta, Cuenta, Datos } from '@shared/tipos'
+import { AVISOS, type CalendarioInfo, type Carpeta, type Cuenta, type Datos } from '@shared/tipos'
 import { api } from '@/estado'
 import { ACENTOS, SelectorAcento, type AcentoId } from '@/components/Acento'
 import type { Disposicion } from '@/components/Toolbar'
@@ -49,6 +49,10 @@ export function Ajustes(p: {
   const [seccion, setSeccion] = useState<Seccion>('general')
   const [calendarios, setCalendarios] = useState<CalendarioInfo[]>([])
   const [quitando, setQuitando] = useState<string | null>(null)
+  const [avisoReuniones, setAvisoReuniones] = useState<number | null>(null)
+  useEffect(() => {
+    api.avisoReuniones().then(setAvisoReuniones, () => {})
+  }, [])
 
   useEffect(() => {
     const cargar = () => api.calendarios().then(setCalendarios, () => {})
@@ -189,6 +193,28 @@ export function Ajustes(p: {
           {seccion === 'calendario' && (
             <>
               <h2>Calendario</h2>
+              <div className="aj-grupo">
+                <label className="aj-interruptor">
+                  <span>Aviso por defecto de las reuniones (invitaciones)</span>
+                  <select
+                    className="aj-select"
+                    value={avisoReuniones ?? 10}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setAvisoReuniones(v)
+                      api.ponerAvisoReuniones(v)
+                    }}
+                  >
+                    <option value={-1}>Sin aviso</option>
+                    {AVISOS.filter((a) => a.minutos <= 1440).map((a) => (
+                      <option key={a.minutos} value={a.minutos}>
+                        {a.minutos === 0 ? a.texto : `${a.texto} antes`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="aj-nota">Cada evento puede tener los suyos con la campana. Los avisos salen como notificación del sistema.</div>
+              </div>
               {calendarios.length === 0 && <p className="aj-nota">Todavía no hay calendarios: las invitaciones que te lleguen por correo aparecerán solas.</p>}
               {calendarios.map((c) => (
                 <div className="aj-cuenta" key={c.id}>

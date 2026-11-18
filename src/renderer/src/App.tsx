@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Archive, ArrowBendDoubleUpLeft, ArrowBendUpLeft, ArrowBendUpRight, EnvelopeSimple, EnvelopeSimpleOpen, Flag, Folder,
-  Key, Prohibit, Trash, UserPlus,
+  CalendarPlus, Key, Prohibit, Trash, UserPlus,
 } from '@phosphor-icons/react'
 import type { Buzon, Datos, Mensaje, RolCarpeta } from '@shared/tipos'
 import { api, useCorreo } from '@/estado'
@@ -13,6 +13,8 @@ import { VistaRapida } from '@/components/VistaRapida'
 import { Redactar } from '@/components/Redactar'
 import { NuevaCuenta } from '@/components/NuevaCuenta'
 import { Calendario } from '@/components/Calendario'
+import { EditorEvento, type NuevoEvento } from '@/components/EditorEvento'
+import type { Instancia } from '@shared/tipos'
 import { useAcento } from '@/components/Acento'
 import { Ajustes } from '@/components/Ajustes'
 import { miles } from '@/formato'
@@ -94,6 +96,16 @@ export function App() {
   const [menu, setMenu] = useState<MenuAbierto | null>(null)
   const [redactando, setRedactando] = useState<OpcionesRedactar | null>(null)
   const [enCalendario, setEnCalendario] = useState(false)
+  const [irADia, setIrADia] = useState<number | null>(null) // al pulsar un aviso: el calendario en ese día
+  const [editorEvento, setEditorEvento] = useState<{ existente?: Instancia; nuevo?: NuevoEvento } | null>(null)
+  useEffect(
+    () =>
+      window.niebla.alIrADia((ms) => {
+        setIrADia(ms)
+        setEnCalendario(true)
+      }),
+    [],
+  )
   // Elegir un buzón en la barra lateral vuelve al correo.
   useEffect(() => setEnCalendario(false), [correo.buzon])
   const [alta, setAlta] = useState<{ cuenta?: string } | null>(null) // añadir cuenta o poner su contraseña
@@ -207,6 +219,8 @@ export function App() {
       avisar,
       buscar: (t) => correo.setBusqueda(t),
       redactar,
+      nuevoEvento: (o) => setEditorEvento({ nuevo: o ?? {} }),
+      editarEvento: (e) => setEditorEvento({ existente: e }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [avisar, redactar],
@@ -297,6 +311,14 @@ export function App() {
           icono: <UserPlus size={15} />,
           accion: () => redactar({ tipo: 'nuevo', para: [m.de], cuenta: m.cuenta }),
         },
+        {
+          etiqueta: 'Crear evento con este correo…',
+          icono: <CalendarPlus size={15} />,
+          accion: () => {
+            const asunto = m.asunto.replace(/^((re|rv|fw|fwd|reenviado)\s*:\s*)+/i, '')
+            setEditorEvento({ nuevo: { titulo: asunto, mensaje: m.id, asuntoCorreo: asunto } })
+          },
+        },
       ]
       setMenu({ x, y, elementos })
     },
@@ -342,7 +364,7 @@ export function App() {
   // Atajos de teclado de Mail (Cmd → Ctrl).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (vista || redactando || alta || verAjustes || enCalendario) return // el calendario tiene sus propias teclas // la vista rápida y la ventana de redactar tienen sus propias teclas
+      if (vista || redactando || alta || verAjustes || editorEvento || enCalendario) return // el calendario tiene sus propias teclas // la vista rápida y la ventana de redactar tienen sus propias teclas
       const enCampo = (e.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]')
       const k = e.key.toLowerCase()
       if (e.ctrlKey && !e.shiftKey && k === 'f') return e.preventDefault(), setFocoBusqueda(Date.now())
@@ -415,7 +437,7 @@ export function App() {
       )}
       <main className="principal">
         {enCalendario ? (
-          <Calendario onCerrar={() => setEnCalendario(false)} onAbrirCorreo={abrirCorreo} />
+          <Calendario key={irADia ?? 'cal'} irA={irADia} onCerrar={() => setEnCalendario(false)} onAbrirCorreo={abrirCorreo} />
         ) : (
           <>
         <Toolbar
@@ -523,6 +545,15 @@ export function App() {
           onClave={(id) => (setVerAjustes(false), setAlta({ cuenta: id }))}
           avisar={avisar}
           onCerrar={() => setVerAjustes(false)}
+        />
+      )}
+      {editorEvento && (
+        <EditorEvento
+          key={editorEvento.existente?.clave ?? JSON.stringify(editorEvento.nuevo)}
+          existente={editorEvento.existente}
+          nuevo={editorEvento.nuevo}
+          onCerrar={() => setEditorEvento(null)}
+          avisar={avisar}
         />
       )}
       {menu && <MenuContextual menu={menu} onCerrar={cerrarMenu} />}

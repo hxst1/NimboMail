@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowBendDoubleUpLeft, ArrowBendUpLeft, ArrowBendUpRight, ArrowSquareOut, ArrowLeft, Copy, DownloadSimple, Envelope, Eye,
+  ArrowBendDoubleUpLeft, ArrowBendUpLeft, ArrowBendUpRight, ArrowSquareOut, ArrowLeft, CalendarPlus, Copy, DownloadSimple, Envelope, Eye,
   FilePdf, FileImage, FileXls, FileDoc, File as FileIco, Globe, LinkSimple, MagnifyingGlass, Paperclip, PencilSimple, Prohibit, Translate,
   UserPlus,
 } from '@phosphor-icons/react'
@@ -400,6 +400,14 @@ function Tarjeta(p: {
         { etiqueta: 'Responder a todos', icono: <ArrowBendDoubleUpLeft size={15} />, atajo: 'Ctrl ⇧ R', accion: () => ui.redactar({ tipo: 'responderTodos', id: m.id }) },
         { etiqueta: 'Reenviar', icono: <ArrowBendUpRight size={15} />, atajo: 'Ctrl ⇧ F', accion: () => ui.redactar({ tipo: 'reenviar', id: m.id }) },
       )
+      el.push('-', {
+        etiqueta: 'Crear evento con este correo…',
+        icono: <CalendarPlus size={15} />,
+        accion: () => {
+          const asunto = m.asunto.replace(/^((re|rv|fw|fwd|reenviado)\s*:\s*)+/i, '')
+          ui.nuevoEvento({ titulo: asunto, mensaje: m.id, asuntoCorreo: asunto })
+        },
+      })
       if (ingles) {
         el.push('-', trad === 'traducido'
           ? { etiqueta: 'Ver original', icono: <Translate size={15} />, atajo: 'Ctrl ⇧ T', accion: verOriginal }

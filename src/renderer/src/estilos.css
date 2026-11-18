@@ -2062,11 +2062,22 @@ a.tb-boton {
   box-shadow: inset 0 0 0 1px var(--acento);
   background: rgba(255, 255, 255, 0.12);
 }
-.et-acciones .et-correo {
+.et-acciones .et-icono {
   width: 26px;
   padding: 0;
   justify-content: center;
-  margin-left: auto;
+}
+.et-hueco {
+  flex: 1;
+}
+.et-nota {
+  align-items: flex-start;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+.et-nota svg {
+  flex: none;
+  margin-top: 2px;
 }
 .evento-tarjeta.compacta {
   margin-top: 14px;
@@ -2479,4 +2490,202 @@ a.tb-boton {
   box-shadow:
     0 0 0 2px #1e1f21,
     0 0 0 3.5px var(--texto-2);
+}
+
+.aj-select {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 0;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto);
+  font: 12.5px Inter, sans-serif;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- editor de eventos */
+
+.editor-evento {
+  width: min(480px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 18px;
+  border-radius: 16px;
+  background: rgba(30, 31, 33, 0.95);
+  backdrop-filter: blur(28px);
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+    0 24px 60px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+.ee-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto-2);
+}
+.ee-cerrar {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--texto-3);
+}
+.ee-cerrar:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto);
+}
+.ee-titulo {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 0;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--texto);
+  font: 600 16px Inter, sans-serif;
+}
+.ee-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--texto-2);
+}
+.ee-fila input[type='date'],
+.ee-fila input[type='time'] {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 0;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--texto);
+  font: 13px Inter, sans-serif;
+}
+.ee-horas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ee-interruptor {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+}
+.ee-interruptor span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e4e6e7;
+  transition: transform 0.15s;
+}
+.ee-interruptor.encendido {
+  background: var(--acento);
+}
+.ee-interruptor.encendido span {
+  transform: translateX(14px);
+  background: #141516;
+}
+.ee-campo {
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 0;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--texto);
+  font: 13px Inter, sans-serif;
+}
+.ee-nota {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.45;
+}
+.ee-avisos {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ee-etiqueta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--texto-2);
+}
+.ee-sub {
+  font-weight: 400;
+  color: var(--texto-3);
+}
+.ee-fichas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.ee-fichas button {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+  color: var(--texto-2);
+}
+.ee-fichas button.elegido {
+  background: var(--acento);
+  color: #141516;
+  font-weight: 600;
+}
+.ee-correo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--texto-3);
+}
+.ee-pie {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ee-hueco {
+  flex: 1;
+}
+.ee-pie button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 15px;
+  font-size: 13px;
+  color: var(--texto-2);
+}
+.ee-pie button:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.ee-pie button.destacado {
+  background: var(--acento);
+  color: #141516;
+  font-weight: 600;
+}
+.ee-borrar.seguro {
+  background: rgba(184, 101, 106, 0.2);
+  color: #e0b2b5;
 }

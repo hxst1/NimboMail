@@ -1,5 +1,5 @@
 import { enableCompileCache } from 'node:module'
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, Notification, protocol, shell } from 'electron'
 import type { Borrador } from '@shared/tipos'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -14,6 +14,8 @@ enableCompileCache?.()
 process.env.CHROME_DESKTOP = 'tuxmail.desktop'
 app.setName('tuxmail')
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+// La interfaz es en español: fechas dd/mm/aaaa y horas de 24 h en los campos de fecha y hora.
+app.commandLine.appendSwitch('lang', 'es-ES')
 
 const demo = process.argv.includes('--demo')
 // CORREO_CAPTURA=/ruta.png: renderiza oculta, guarda una captura y sale (para revisar el diseño).
@@ -70,6 +72,11 @@ const API = {
   quitarCalendario: (id: string) => servicio.calendario.quitar(id),
   mostrarCalendario: (id: string, visible: boolean) => servicio.calendario.mostrar(id, visible),
   colorCalendario: (id: string, color: string) => servicio.calendario.cambiarColor(id, color),
+  guardarEvento: (d: Parameters<Servicio['calendario']['guardarEvento']>[0]) => servicio.calendario.guardarEvento(d),
+  borrarEvento: (id: string) => servicio.calendario.borrarEvento(id),
+  ponerAvisos: (id: string, minutos: number[]) => servicio.calendario.ponerAvisos(id, minutos),
+  avisoReuniones: () => servicio.calendario.avisoReuniones(),
+  ponerAvisoReuniones: (minutos: number) => servicio.calendario.ponerAvisoReuniones(minutos),
   actualizarCalendarios: () => servicio.calendario.actualizar(),
   elegirArchivos: async () => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -257,6 +264,22 @@ const aTodas = (canal: string, ...args: unknown[]) =>
 servicio.on('cambios', () => aTodas('tuxmail:cambios'))
 servicio.on('parche', (p: unknown) => aTodas('tuxmail:parche', p))
 servicio.on('calendario', () => aTodas('tuxmail:calendario'))
+
+// Avisos del calendario: notificación del sistema (sale en la isla). Al pulsarla, el calendario en ese día.
+servicio.calendario.on('aviso', (a: { titulo: string; cuerpo: string; inicio: number }) => {
+  if (captura) return console.log('[captura] aviso:', a.titulo, '·', a.cuerpo) // en pruebas, al registro
+  if (!Notification.isSupported()) return
+  const n = new Notification({ title: a.titulo, body: a.cuerpo, icon: join(import.meta.dirname, '../../resources/tuxmail.png') })
+  n.on('click', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+    win.webContents.send('tuxmail:ir-a-dia', a.inicio)
+  })
+  n.show()
+})
 servicio.on('error', (texto: string) => aTodas('tuxmail:error', texto))
 
 app.whenReady().then(() => {

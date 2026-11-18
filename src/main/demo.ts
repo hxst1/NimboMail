@@ -238,5 +238,14 @@ export function sembrarCalendario(c: Calendario) {
     const d = en(n, 0)
     return ['BEGIN:VEVENT', `UID:fest-${n}`, `DTSTART;VALUE=DATE:${diaIcs(d)}`, `SUMMARY:${titulo}`, 'END:VEVENT']
   }
+  c.guardarEvento({
+    titulo: 'Llamar al gestor',
+    inicio: en(1, 13, 0).getTime(),
+    fin: en(1, 13, 30).getTime(),
+    todoElDia: false,
+    lugar: '',
+    nota: 'Preguntar por la factura de octubre y el modelo 303.',
+    avisos: [10, 1440],
+  })
   c.sembrarFeed('Festivos', ['BEGIN:VCALENDAR', 'VERSION:2.0', ...fest(9, 'Fiesta local'), ...fest(19, 'Día festivo'), 'END:VCALENDAR'].join('\r\n'))
 }

@@ -18,6 +18,7 @@ Conversaciones bien hiladas, imágenes protegidas contra el rastreo, traductor i
 - **Menú de clic derecho**: responder citando lo seleccionado, traducir una selección, copiar imágenes y adjuntos como archivos (se pegan en el gestor de archivos, en un chat o en otro correo), nuevo correo a una persona…
 - **Redactar**: responder y reenviar con la cita bien formateada y el hilo intacto (`In-Reply-To`/`References`), pegar o arrastrar archivos e imágenes, y borradores que se guardan solos.
 - **Calendario**: las invitaciones que llegan por correo (Google Meet, Teams, Zoom…) se convierten en eventos con **Unirse** y **Aceptar / Quizá / Rechazar**, que responde al organizador como cualquier calendario. Se actualizan solas si cambian o se cancelan. Puedes suscribirte también a calendarios por enlace iCal (festivos, la dirección secreta de Google Calendar…). Vista mes y semana, sin necesidad de entrar con Google ni Microsoft.
+- **Eventos propios y avisos**: crea eventos o notas con «+», doble clic o clic derecho en un día (o en una hora de la semana), o desde un correo («Crear evento con este correo…», que queda enlazado). Cualquier evento puede tener avisos (al empezar, 5, 10, 15 o 30 minutos, 1, 2 u 8 horas, 1 o 2 días, o 1 semana antes), que salen como notificación del sistema.
 - **Vista rápida** de imágenes y PDF con la barra espaciadora.
 - **Deshacer** (`Ctrl+Z`) para archivar, borrar, mover y marcar.
 - **Ajustes** (la rueda de abajo a la izquierda): color de resaltado, disposición, traducción, cuentas, calendarios y qué se ve en la barra lateral (favoritos y carpetas de cada cuenta; también con clic derecho → «Ocultar»).
@@ -91,7 +92,7 @@ En una app de escritorio el client ID no es secreto: el inicio de sesión va pro
 | `Ctrl+Shift+T` | Traducir el correo / ver el original |
 | `Ctrl+F` | Buscar |
 | `Ctrl+Z` | Deshacer |
-| `←` / `→` · `T` | En el calendario: anterior / siguiente · hoy |
+| `←` / `→` · `T` · `N` | En el calendario: anterior / siguiente · hoy · nuevo evento |
 
 ## Dónde guarda las cosas
 

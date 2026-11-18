@@ -120,7 +120,7 @@ export interface DatosRespuesta {
 export interface CalendarioInfo {
   id: string
   nombre: string
-  tipo: 'invitaciones' | 'ical'
+  tipo: 'invitaciones' | 'ical' | 'propio'
   cuenta: string | null
   color: string
   visible: boolean
@@ -152,6 +152,23 @@ export interface Instancia {
   organizador: PersonaEvento | null
   asistentes: number
   esInvitacion: boolean
-  mensaje: string | null // el correo que la trajo
+  mensaje: string | null // el correo que la trajo (o del que se creó)
   repite: boolean
+  propio: boolean // creado en TuxMail: se puede editar y borrar
+  avisos: number[] // minutos antes del inicio
 }
+
+/** Los avisos que se pueden elegir, en minutos antes. */
+export const AVISOS: { minutos: number; texto: string }[] = [
+  { minutos: 0, texto: 'Al empezar' },
+  { minutos: 5, texto: '5 minutos' },
+  { minutos: 10, texto: '10 minutos' },
+  { minutos: 15, texto: '15 minutos' },
+  { minutos: 30, texto: '30 minutos' },
+  { minutos: 60, texto: '1 hora' },
+  { minutos: 120, texto: '2 horas' },
+  { minutos: 480, texto: '8 horas' },
+  { minutos: 1440, texto: '1 día' },
+  { minutos: 2880, texto: '2 días' },
+  { minutos: 10080, texto: '1 semana' },
+]

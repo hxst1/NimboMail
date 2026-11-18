@@ -40,6 +40,21 @@ CREATE TABLE IF NOT EXISTS respuestas_enviadas (
   respuesta TEXT NOT NULL,
   fecha INTEGER NOT NULL
 );
+-- Avisos de cada evento, en minutos antes del inicio (-1 = sin avisos, aunque haya uno por defecto).
+CREATE TABLE IF NOT EXISTS avisos (
+  evento TEXT NOT NULL,
+  minutos INTEGER NOT NULL,
+  PRIMARY KEY (evento, minutos)
+);
+-- Avisos ya mostrados (para no repetirlos al reiniciar).
+CREATE TABLE IF NOT EXISTS avisos_hechos (
+  clave TEXT PRIMARY KEY,
+  cuando INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ajustes_calendario (
+  clave TEXT PRIMARY KEY,
+  valor TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS invitaciones_correo (
   mensaje TEXT PRIMARY KEY,
   evento TEXT NOT NULL
@@ -49,6 +64,10 @@ CREATE TABLE IF NOT EXISTS invitaciones_correo (
 // Colores de la paleta Niebla primero; luego los de resaltado.
 const COLORES = ['#c8ccd0', '#8b98a6', '#a37ad6', '#4f8fe6', '#55a868', '#d9873f', '#d9558f']
 const MAX_FEED = 15 * 1024 * 1024
+const PROPIO = 'propio'
+const AVISO_REUNIONES = 10 // minutos antes, si no se elige otra cosa
+const NUEVE_HORAS = 9 * 3_600_000 // los avisos de un evento de todo el día cuentan desde las 9:00
+const TARDE_MAX = 15 * 60_000 // un aviso que se pasó por más de esto (app cerrada) ya no se muestra
 const CADA = 30 * 60_000
 
 interface Fila {
@@ -69,9 +88,17 @@ interface Fila {
 
 const claveSecreto = (id: string) => `calendario:${id}`
 
+export interface AvisoEvento {
+  titulo: string
+  cuerpo: string
+  inicio: number
+  enlace: string | null
+}
+
 export class Calendario extends EventEmitter {
   private aviso: NodeJS.Timeout | null = null
   private temporizador: NodeJS.Timeout | null = null
+  private relojAvisos: NodeJS.Timeout | null = null
 
   constructor(
     private db: Db,
@@ -84,10 +111,14 @@ export class Calendario extends EventEmitter {
   arrancar() {
     setTimeout(() => this.actualizar().catch(() => {}), 8000)
     this.temporizador = setInterval(() => this.actualizar().catch(() => {}), CADA)
+    // Avisos: se revisan cada 20 s (y al arrancar, por si alguno acaba de vencer).
+    setTimeout(() => this.revisarAvisos(), 4000)
+    this.relojAvisos = setInterval(() => this.revisarAvisos(), 20_000)
   }
 
   parar() {
     if (this.temporizador) clearInterval(this.temporizador)
+    if (this.relojAvisos) clearInterval(this.relojAvisos)
   }
 
   /** Avisa a la interfaz y vuelve a exportar, agrupando ráfagas. */
@@ -102,10 +133,10 @@ export class Calendario extends EventEmitter {
 
   calendarios(): CalendarioInfo[] {
     return (
-      this.db.sql.prepare('SELECT * FROM calendarios ORDER BY tipo DESC, nombre').all() as {
+      this.db.sql.prepare("SELECT * FROM calendarios ORDER BY CASE tipo WHEN 'propio' THEN 0 WHEN 'invitaciones' THEN 1 ELSE 2 END, nombre").all() as {
         id: string
         nombre: string
-        tipo: 'invitaciones' | 'ical'
+        tipo: 'invitaciones' | 'ical' | 'propio'
         cuenta: string | null
         color: string
         visible: number
@@ -226,10 +257,10 @@ export class Calendario extends EventEmitter {
     // De una serie, la próxima repetición (o la primera, si ya pasaron todas).
     let inicio = ev.inicio
     if (ev.rrule) inicio = repeticiones(ev.inicio, ev.rrule, ev.exdates, Date.now() - (ev.fin - ev.inicio), Date.now() + 400 * 86_400_000)[0] ?? ev.inicio
-    return this.instancia(f, ev, inicio, f.color)
+    return this.instancia(f, ev, inicio, f.color, this.mapaAvisos()(f.id, f.tipo))
   }
 
-  private instancia(f: Fila, ev: EventoIcs, inicio: number, color: string): Instancia {
+  private instancia(f: Fila, ev: EventoIcs, inicio: number, color: string, avisos: number[] = []): Instancia {
     return {
       clave: `${f.id}@${inicio}`,
       id: f.id,
@@ -249,17 +280,151 @@ export class Calendario extends EventEmitter {
       esInvitacion: f.tipo === 'invitaciones',
       mensaje: f.mensaje,
       repite: !!ev.rrule,
+      propio: f.tipo === 'propio',
+      avisos,
     }
   }
 
+  // ------------------------------------------------------------ avisos
+
+  avisoReuniones(): number {
+    const f = this.db.sql.prepare("SELECT valor FROM ajustes_calendario WHERE clave = 'avisoReuniones'").get() as { valor: string } | undefined
+    return f ? Number(f.valor) : AVISO_REUNIONES
+  }
+
+  ponerAvisoReuniones(minutos: number) {
+    this.db.sql.prepare("INSERT OR REPLACE INTO ajustes_calendario (clave, valor) VALUES ('avisoReuniones', ?)").run(String(minutos))
+    this.emit('cambios')
+  }
+
+  /** Los avisos de cada evento: los suyos, o el de por defecto si es una reunión y no tiene. */
+  private mapaAvisos(): (id: string, tipo?: string) => number[] {
+    const filas = this.db.sql.prepare('SELECT evento, minutos FROM avisos').all() as { evento: string; minutos: number }[]
+    const mapa = new Map<string, number[]>()
+    for (const f of filas) mapa.set(f.evento, [...(mapa.get(f.evento) ?? []), f.minutos])
+    const defecto = this.avisoReuniones()
+    return (id, tipo) => {
+      const propios = mapa.get(id)
+      if (propios) return propios.filter((m) => m >= 0).sort((a, b) => a - b)
+      return tipo === 'invitaciones' && defecto >= 0 ? [defecto] : []
+    }
+  }
+
+  ponerAvisos(id: string, minutos: number[]) {
+    const unicos = [...new Set(minutos.filter((m) => Number.isInteger(m) && m >= 0 && m <= 60 * 24 * 31))]
+    this.db.transaccion(() => {
+      this.db.sql.prepare('DELETE FROM avisos WHERE evento = ?').run(id)
+      const ins = this.db.sql.prepare('INSERT INTO avisos (evento, minutos) VALUES (?, ?)')
+      if (!unicos.length) ins.run(id, -1) // «sin avisos», aunque haya uno por defecto
+      for (const m of unicos) ins.run(id, m)
+    })
+    this.cambiado()
+  }
+
+  /** Dispara los avisos que acaban de vencer (en cualquier calendario, aunque esté oculto). */
+  revisarAvisos() {
+    const ahora = Date.now()
+    let instancias: Instancia[]
+    try {
+      instancias = this.instancias(ahora - TARDE_MAX, ahora + 32 * 86_400_000, true)
+    } catch {
+      return
+    }
+    const hecho = this.db.sql.prepare('SELECT 1 FROM avisos_hechos WHERE clave = ?')
+    const marcar = this.db.sql.prepare('INSERT OR IGNORE INTO avisos_hechos (clave, cuando) VALUES (?, ?)')
+    for (const e of instancias) {
+      if (e.estado === 'cancelado' || e.miRespuesta === 'DECLINED') continue
+      const base = e.todoElDia ? e.inicio + NUEVE_HORAS : e.inicio
+      for (const m of e.avisos) {
+        const cuando = base - m * 60_000
+        if (cuando > ahora || cuando < ahora - TARDE_MAX) continue
+        const clave = `${e.clave}#${m}`
+        if (hecho.get(clave)) continue
+        marcar.run(clave, ahora)
+        this.emit('aviso', { titulo: e.titulo, cuerpo: textoAviso(e, ahora), inicio: e.inicio, enlace: e.enlace } satisfies AvisoEvento)
+      }
+    }
+    // Lo viejo fuera (más de 40 días).
+    this.db.sql.prepare('DELETE FROM avisos_hechos WHERE cuando < ?').run(ahora - 40 * 86_400_000)
+  }
+
+  // ------------------------------------------------------------ eventos propios
+
+  private asegurarPropio(): string {
+    this.db.sql
+      .prepare("INSERT OR IGNORE INTO calendarios (id, nombre, tipo, color) VALUES (?, 'Mis eventos', 'propio', ?)")
+      .run(PROPIO, this.colorLibre())
+    return PROPIO
+  }
+
+  /** Crea o cambia un evento propio (con o sin correo). Devuelve su id. */
+  guardarEvento(d: {
+    id?: string | null
+    titulo: string
+    inicio: number
+    fin: number
+    todoElDia: boolean
+    lugar: string
+    nota: string
+    mensaje?: string | null
+    avisos: number[]
+  }): string {
+    const cal = this.asegurarPropio()
+    const ya = d.id ? (this.db.sql.prepare('SELECT * FROM eventos WHERE id = ? AND calendario = ?').get(d.id, cal) as unknown as Fila | undefined) : undefined
+    const uid = ya?.uid ?? `${randomBytes(8).toString('hex')}@tuxmail`
+    const id = ya?.id ?? `${cal}:${uid}:`
+    const inicio = d.todoElDia ? new Date(new Date(d.inicio).setHours(0, 0, 0, 0)).getTime() : d.inicio
+    const fin = d.todoElDia ? Math.max(new Date(new Date(d.fin).setHours(0, 0, 0, 0)).getTime(), inicio) + 86_400_000 : Math.max(d.fin, d.inicio)
+    const ev: EventoIcs = {
+      uid,
+      recurrencia: null,
+      titulo: d.titulo.trim() || '(Sin título)',
+      inicio,
+      fin,
+      todoElDia: d.todoElDia,
+      lugar: d.lugar.trim(),
+      descripcion: d.nota.trim(),
+      enlace: `${d.lugar} ${d.nota}`.match(/https:\/\/(?:meet\.google\.com|teams\.(?:microsoft|live)\.com|[\w.-]*zoom\.us|[\w.-]*webex\.com)\/[^\s"<>]+/i)?.[0] ?? null,
+      organizador: null,
+      asistentes: [],
+      estado: 'confirmado',
+      secuencia: 0,
+      rrule: null,
+      exdates: [],
+      crudo: { dtstart: '', dtend: null, organizador: null, recurrencia: null },
+    }
+    const mensaje = d.mensaje ?? ya?.mensaje ?? null
+    this.db.sql
+      .prepare(
+        `INSERT INTO eventos (id, calendario, uid, recurrencia, datos, inicio, fin, rrule, mi_respuesta, mensaje, fecha_correo)
+         VALUES (?, ?, ?, NULL, ?, ?, ?, NULL, 'ORGANIZADOR', ?, NULL)
+         ON CONFLICT (id) DO UPDATE SET datos = excluded.datos, inicio = excluded.inicio, fin = excluded.fin, mensaje = excluded.mensaje`,
+      )
+      .run(id, cal, uid, JSON.stringify(ev), inicio, fin, mensaje)
+    // Si viene de un correo, el correo enseña su tarjeta (salvo que ya lleve una invitación).
+    if (mensaje) this.db.sql.prepare('INSERT OR IGNORE INTO invitaciones_correo (mensaje, evento) VALUES (?, ?)').run(mensaje, id)
+    this.ponerAvisos(id, d.avisos)
+    this.cambiado()
+    return id
+  }
+
+  borrarEvento(id: string) {
+    if (!id.startsWith(`${PROPIO}:`)) throw new Error('Solo se pueden borrar los eventos propios')
+    this.db.sql.prepare('DELETE FROM eventos WHERE id = ?').run(id)
+    this.db.sql.prepare('DELETE FROM avisos WHERE evento = ?').run(id)
+    this.db.sql.prepare('DELETE FROM invitaciones_correo WHERE evento = ?').run(id)
+    this.cambiado()
+  }
+
   /** Lo que hay que pintar entre dos fechas, con las repeticiones ya desplegadas. */
-  instancias(desde: number, hasta: number): Instancia[] {
+  instancias(desde: number, hasta: number, tambienOcultos = false): Instancia[] {
+    const avisosDe = this.mapaAvisos()
     const filas = this.db.sql
       .prepare(
         `SELECT e.*, c.tipo, c.cuenta, c.color FROM eventos e JOIN calendarios c ON c.id = e.calendario
-         WHERE c.visible = 1 AND ((e.rrule IS NULL AND e.fin >= ? AND e.inicio <= ?) OR e.rrule IS NOT NULL OR e.recurrencia IS NOT NULL)`,
+         WHERE (c.visible = 1 OR ?) AND ((e.rrule IS NULL AND e.fin >= ? AND e.inicio <= ?) OR e.rrule IS NOT NULL OR e.recurrencia IS NOT NULL)`,
       )
-      .all(desde, hasta) as unknown as (Fila & { color: string })[]
+      .all(+tambienOcultos, desde, hasta) as unknown as (Fila & { color: string })[]
     // Excepciones de una serie: sustituyen (o cancelan) esa repetición concreta.
     const excepciones = new Map<string, Set<number>>()
     for (const f of filas) {
@@ -272,17 +437,17 @@ export class Calendario extends EventEmitter {
     for (const f of filas) {
       const ev = JSON.parse(f.datos) as EventoIcs
       if (f.recurrencia !== null) {
-        if (ev.estado !== 'cancelado' && f.fin >= desde && f.inicio <= hasta) out.push(this.instancia(f, ev, ev.inicio, f.color))
+        if (ev.estado !== 'cancelado' && f.fin >= desde && f.inicio <= hasta) out.push(this.instancia(f, ev, ev.inicio, f.color, avisosDe(f.id, f.tipo)))
         continue
       }
       if (!ev.rrule) {
-        out.push(this.instancia(f, ev, ev.inicio, f.color))
+        out.push(this.instancia(f, ev, ev.inicio, f.color, avisosDe(f.id, f.tipo)))
         continue
       }
       const sustituidas = excepciones.get(`${f.calendario}|${f.uid}`)
       for (const ini of repeticiones(ev.inicio, ev.rrule, ev.exdates, desde - (ev.fin - ev.inicio), hasta)) {
         if (sustituidas?.has(Math.round(ini / 60000))) continue
-        out.push(this.instancia(f, ev, ini, f.color))
+        out.push(this.instancia(f, ev, ini, f.color, avisosDe(f.id, f.tipo)))
       }
     }
     return out.sort((a, b) => Number(b.todoElDia) - Number(a.todoElDia) || a.inicio - b.inicio)
@@ -387,7 +552,7 @@ export class Calendario extends EventEmitter {
     const filas = this.db.sql
       .prepare(
         `SELECT e.datos, e.mi_respuesta FROM eventos e JOIN calendarios c ON c.id = e.calendario
-         WHERE c.tipo = 'invitaciones' AND (e.mi_respuesta IS NULL OR e.mi_respuesta <> 'DECLINED')`,
+         WHERE c.tipo IN ('invitaciones', 'propio') AND (e.mi_respuesta IS NULL OR e.mi_respuesta <> 'DECLINED')`,
       )
       .all() as { datos: string }[]
     const lineas = filas
@@ -403,4 +568,20 @@ export class Calendario extends EventEmitter {
       console.error('[calendario] no se pudo exportar:', (e as Error).message)
     }
   }
+}
+
+/** «Empieza en 10 minutos · 16:00–16:45», «Mañana a las 10:00»… */
+function textoAviso(e: Instancia, ahora: number): string {
+  const h = (ms: number) => new Date(ms).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  const franja = e.todoElDia ? 'Todo el día' : `${h(e.inicio)}–${h(e.fin)}`
+  const falta = Math.round((e.inicio - ahora) / 60_000)
+  const dia = (ms: number) => new Date(ms).toDateString()
+  const manana = new Date(ahora + 86_400_000).toDateString()
+  let cuando: string
+  if (!e.todoElDia && falta <= 1) cuando = 'Empieza ahora'
+  else if (!e.todoElDia && falta < 60) cuando = `Empieza en ${falta} minutos`
+  else if (dia(e.inicio) === dia(ahora)) cuando = e.todoElDia ? 'Hoy' : `Hoy a las ${h(e.inicio)}`
+  else if (dia(e.inicio) === manana) cuando = e.todoElDia ? 'Mañana' : `Mañana a las ${h(e.inicio)}`
+  else cuando = new Date(e.inicio).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+  return [cuando, franja, e.lugar && !e.lugar.startsWith('http') ? e.lugar : ''].filter(Boolean).join(' · ')
 }

@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { CaretRight, Copy, Translate } from '@phosphor-icons/react'
+import type { Instancia } from '@shared/tipos'
+import type { NuevoEvento } from '@/components/EditorEvento'
 import { api } from '@/estado'
 import { traducirTexto } from '@/traductor'
 
@@ -28,6 +30,8 @@ export interface Interfaz {
   avisar: (texto: string) => void
   buscar: (texto: string) => void
   redactar: (o: OpcionesRedactar) => void
+  nuevoEvento: (o?: NuevoEvento) => void
+  editarEvento: (e: Instancia) => void
 }
 
 export type OpcionesRedactar =
@@ -41,6 +45,8 @@ export const InterfazContexto = createContext<Interfaz>({
   avisar: () => {},
   buscar: () => {},
   redactar: () => {},
+  nuevoEvento: () => {},
+  editarEvento: () => {},
 })
 export const useInterfaz = () => useContext(InterfazContexto)
 
