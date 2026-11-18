@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowSquareOut, CaretDown, CaretRight, EnvelopeSimple, ShieldCheck, X } from '@phosphor-icons/react'
 import type { Cuenta } from '@shared/tipos'
 import { api } from '@/estado'
@@ -11,6 +11,24 @@ const VACIOS: Servidores = { imap: '', puerto: 993, smtp: '', smtpPuerto: 465, u
 
 const NOMBRES_PROVEEDOR: Record<string, string> = {
   google: 'Google', microsoft: 'Microsoft', icloud: 'iCloud', yahoo: 'Yahoo', fastmail: 'Fastmail', proton: 'Proton', otro: '',
+}
+
+/** Cómo conseguir la contraseña (de aplicación) en cada proveedor, con sus enlaces. */
+function Ayuda({ ayuda }: { ayuda: NonNullable<Deteccion['ayuda']> }) {
+  return (
+    <div className="nc-ayuda">
+      {ayuda.texto}
+      {!!ayuda.enlaces?.length && (
+        <div className="nc-enlaces">
+          {ayuda.enlaces.map((e) => (
+            <button key={e.url} type="button" onClick={() => api.abrirEnlace(e.url)}>
+              {e.etiqueta} <ArrowSquareOut size={12} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** Explica un fallo de conexión en cristiano. */
@@ -54,6 +72,28 @@ export function NuevaCuenta({
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [fallo, setFallo] = useState<{ texto: string; certificado?: string; soloEnvio?: boolean } | null>(null)
   const [conectadoOAuth, setConectadoOAuth] = useState(false)
+  const [ayudaClave, setAyudaClave] = useState<Deteccion['ayuda']>()
+  const [proveedorClave, setProveedorClave] = useState<Deteccion['proveedor']>()
+  // Google enseña la contraseña de aplicación en grupos de 4 con espacios: fuera.
+  const esGoogle = (deteccion?.proveedor ?? proveedorClave) === 'google'
+  const claveFinal = esGoogle ? clave.replace(/\s+/g, '') : clave
+
+  // Poniendo la contraseña de una cuenta que ya existe: de dónde sacarla (contraseña de aplicación…).
+  useEffect(() => {
+    if (!existente) return
+    let vivo = true
+    api.detectarCuenta(existente.direccion).then(
+      (d) => {
+        if (!vivo) return
+        setAyudaClave(d.ayuda)
+        setProveedorClave(d.proveedor)
+      },
+      () => {},
+    )
+    return () => {
+      vivo = false
+    }
+  }, [existente])
 
   const paso = existente ? 'clave' : deteccion ? 'credenciales' : 'correo'
 
@@ -84,7 +124,7 @@ export function NuevaCuenta({
       direccion: email.trim(),
       servidores,
       auth,
-      clave: auth === 'clave' ? clave : undefined,
+      clave: auth === 'clave' ? claveFinal : undefined,
     })
     avisar(`Cuenta añadida: ${etiqueta || email}. Descargando el correo…`)
     onCerrar()
@@ -103,7 +143,7 @@ export function NuevaCuenta({
       if (existente) {
         if (!clave) return setFallo({ texto: 'Escribe la contraseña' })
         setOcupado('Comprobando…')
-        const r = await api.cambiarClave(existente.id, clave)
+        const r = await api.cambiarClave(existente.id, claveFinal)
         if (tratar(r) || forzar || (!r.ok && r.motivo !== 'clave')) {
           avisar(`Contraseña guardada para ${existente.nombre}`)
           onCerrar()
@@ -114,7 +154,7 @@ export function NuevaCuenta({
       if (deteccion?.auth !== 'clave' && conectadoOAuth) return anadir(deteccion!.auth)
       if (!clave) return setFallo({ texto: 'Escribe la contraseña' })
       setOcupado('Probando la conexión…')
-      const r = forzar ? ({ ok: true } as const) : await api.probarCuenta(servidores, clave)
+      const r = forzar ? ({ ok: true } as const) : await api.probarCuenta(servidores, claveFinal)
       if (tratar(r)) await anadir('clave')
     } catch (e) {
       setFallo({ texto: (e as Error).message })
@@ -215,16 +255,7 @@ export function NuevaCuenta({
                   onChange={(e) => setClave(e.target.value)}
                   autoFocus
                 />
-                {deteccion.ayuda && (
-                  <div className="nc-ayuda">
-                    {deteccion.ayuda.texto}
-                    {deteccion.ayuda.url && (
-                      <button type="button" onClick={() => api.abrirEnlace(deteccion.ayuda!.url!)}>
-                        Abrir <ArrowSquareOut size={12} />
-                      </button>
-                    )}
-                  </div>
-                )}
+                {deteccion.ayuda && <Ayuda ayuda={deteccion.ayuda} />}
                 <button className="nc-boton" type="submit" disabled={!!ocupado}>
                   Añadir cuenta
                 </button>
@@ -249,7 +280,15 @@ export function NuevaCuenta({
 
         {paso === 'clave' && (
           <>
-            <input className="nc-campo" type="password" placeholder="Contraseña (o contraseña de aplicación)" value={clave} onChange={(e) => setClave(e.target.value)} autoFocus />
+            <input
+              className="nc-campo"
+              type="password"
+              placeholder={ayudaClave ? 'Contraseña de aplicación' : 'Contraseña'}
+              value={clave}
+              onChange={(e) => setClave(e.target.value)}
+              autoFocus
+            />
+            {ayudaClave && <Ayuda ayuda={ayudaClave} />}
             <button className="nc-boton" type="submit" disabled={!!ocupado}>
               Guardar
             </button>

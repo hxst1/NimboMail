@@ -25,7 +25,7 @@ export interface Deteccion {
   etiqueta: string // nombre sugerido para la cuenta en TuxMail
   servidores: Servidores | null
   auth: TipoAuth // cómo se entra: contraseña (de aplicación o normal) u OAuth
-  ayuda?: { texto: string; url?: string }
+  ayuda?: { texto: string; enlaces?: { etiqueta: string; url: string }[] }
   origen: string // de dónde salió la configuración (para mostrarlo)
 }
 
@@ -36,8 +36,12 @@ const CONOCIDOS: { dominios: string[]; proveedor: Proveedor; etiqueta: string; s
     etiqueta: 'Gmail',
     s: { imap: 'imap.gmail.com', puerto: 993, smtp: 'smtp.gmail.com', smtpPuerto: 465 },
     ayuda: {
-      texto: 'Gmail necesita una contraseña de aplicación (con la verificación en dos pasos activada): créala en tu cuenta de Google y pégala aquí.',
-      url: 'https://myaccount.google.com/apppasswords',
+      texto:
+        'Gmail no acepta tu contraseña de siempre: necesita una contraseña de aplicación. Créala con el nombre «TuxMail» y pega aquí las 16 letras (los espacios dan igual). Si Google dice que no está disponible, activa antes la verificación en dos pasos.',
+      enlaces: [
+        { etiqueta: 'Crear contraseña de aplicación', url: 'https://myaccount.google.com/apppasswords' },
+        { etiqueta: 'Verificación en dos pasos', url: 'https://myaccount.google.com/signinoptions/twosv' },
+      ],
     },
   },
   {
@@ -51,14 +55,20 @@ const CONOCIDOS: { dominios: string[]; proveedor: Proveedor; etiqueta: string; s
     proveedor: 'icloud',
     etiqueta: 'iCloud',
     s: { imap: 'imap.mail.me.com', puerto: 993, smtp: 'smtp.mail.me.com', smtpPuerto: 587 },
-    ayuda: { texto: 'iCloud necesita una contraseña específica para apps: créala en tu cuenta de Apple (Inicio de sesión y seguridad).', url: 'https://account.apple.com' },
+    ayuda: {
+      texto: 'iCloud necesita una contraseña específica para apps: créala en tu cuenta de Apple, en «Inicio de sesión y seguridad».',
+      enlaces: [{ etiqueta: 'Abrir tu cuenta de Apple', url: 'https://account.apple.com' }],
+    },
   },
   {
     dominios: ['yahoo.com', 'yahoo.es', 'ymail.com'],
     proveedor: 'yahoo',
     etiqueta: 'Yahoo',
     s: { imap: 'imap.mail.yahoo.com', puerto: 993, smtp: 'smtp.mail.yahoo.com', smtpPuerto: 465 },
-    ayuda: { texto: 'Yahoo necesita una contraseña de aplicación: créala en la seguridad de tu cuenta.', url: 'https://login.yahoo.com/account/security' },
+    ayuda: {
+      texto: 'Yahoo necesita una contraseña de aplicación: créala en la seguridad de tu cuenta.',
+      enlaces: [{ etiqueta: 'Abrir la seguridad de Yahoo', url: 'https://login.yahoo.com/account/security' }],
+    },
   },
   {
     dominios: ['fastmail.com', 'fastmail.fm'],
@@ -72,7 +82,10 @@ const CONOCIDOS: { dominios: string[]; proveedor: Proveedor; etiqueta: string; s
     proveedor: 'proton',
     etiqueta: 'Proton',
     s: { imap: '127.0.0.1', puerto: 1143, smtp: '127.0.0.1', smtpPuerto: 1025 },
-    ayuda: { texto: 'Proton solo funciona con Proton Mail Bridge abierto: usa la contraseña que te da el Bridge.', url: 'https://proton.me/mail/bridge' },
+    ayuda: {
+      texto: 'Proton solo funciona con Proton Mail Bridge abierto: usa la contraseña que te da el Bridge.',
+      enlaces: [{ etiqueta: 'Descargar Proton Mail Bridge', url: 'https://proton.me/mail/bridge' }],
+    },
   },
 ]
 
