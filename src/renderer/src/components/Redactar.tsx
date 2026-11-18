@@ -162,7 +162,8 @@ export function Redactar({
       let inicial: Borrador
       let cuerpoHtml = '<p><br></p>'
       if (opciones.tipo === 'nuevo') {
-        inicial = { cuenta, para: opciones.para ?? [], cc: [], cco: [], asunto: '', html: '', adjuntos: [] }
+        inicial = { cuenta, para: opciones.para ?? [], cc: [], cco: [], asunto: opciones.asunto ?? '', html: '', adjuntos: [] }
+        if (opciones.cuerpo) cuerpoHtml = `<p>${textoAHtmlSimple(opciones.cuerpo)}</p>`
       } else if (opciones.tipo === 'borrador') {
         inicial = await api.abrirBorrador(opciones.id)
         cuerpoHtml = limpiar(inicial.html) || '<p><br></p>'

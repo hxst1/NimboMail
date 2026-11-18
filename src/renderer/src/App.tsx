@@ -110,6 +110,20 @@ export function App() {
     () =>
       window.niebla.alAccion((a) => {
         if (a === 'redactar') setRedactando({ tipo: 'nuevo' })
+        // mailto:dir@ejemplo.com?subject=…&body=…
+        if (/^mailto:/i.test(a)) {
+          try {
+            const u = new URL(a)
+            const para = decodeURIComponent(u.pathname)
+              .split(',')
+              .map((d) => d.trim())
+              .filter(Boolean)
+              .map((direccion) => ({ nombre: '', direccion }))
+            setRedactando({ tipo: 'nuevo', para, asunto: u.searchParams.get('subject') ?? undefined, cuerpo: u.searchParams.get('body') ?? undefined })
+          } catch {
+            setRedactando({ tipo: 'nuevo' })
+          }
+        }
       }),
     [],
   )

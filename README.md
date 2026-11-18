@@ -54,6 +54,14 @@ Necesitas Linux, [Node.js 24](https://nodejs.org), [pnpm](https://pnpm.io) y `se
 git clone https://github.com/hxst1/tuxmail.git
 cd tuxmail
 pnpm install
+pnpm instalar   # compila e instala TuxMail para tu usuario (sin root)
+```
+
+`pnpm instalar` deja la app en `~/.local/lib/tuxmail`, el lanzador `tuxmail` en `~/.local/bin` y su entrada en el lanzador de aplicaciones (con icono y para abrir los enlaces `mailto:`). Para actualizar, vuelve a ejecutarlo. Para que arranque con la sesión, solo en la bandeja, añade `tuxmail --oculto` a los programas de inicio de tu escritorio (en Hyprland: `exec-once`).
+
+Para desarrollar:
+
+```sh
 pnpm dev        # con tus cuentas
 pnpm demo       # con correos de ejemplo, sin conectarse a nada
 ```

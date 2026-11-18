@@ -35,7 +35,7 @@ export interface Interfaz {
 }
 
 export type OpcionesRedactar =
-  | { tipo: 'nuevo'; para?: { nombre: string; direccion: string }[]; cuenta?: string }
+  | { tipo: 'nuevo'; para?: { nombre: string; direccion: string }[]; cuenta?: string; asunto?: string; cuerpo?: string }
   | { tipo: 'responder' | 'responderTodos' | 'reenviar'; id: string; cita?: string }
   | { tipo: 'borrador'; id: string }
 

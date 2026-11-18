@@ -46,7 +46,21 @@ function mostrar() {
   w.show()
   w.focus()
 }
-app.on('second-instance', () => mostrar())
+// mailto: (enlaces de correo del navegador u otras apps): «Mensaje nuevo» con el destinatario puesto.
+const mailtoDe = (argv: string[]) => argv.find((a) => /^mailto:/i.test(a))
+function abrirMailto(url: string) {
+  mostrar()
+  const w = ventana()
+  if (!w) return
+  const enviar = () => w.webContents.send('tuxmail:accion', url)
+  if (w.webContents.isLoading()) w.webContents.once('did-finish-load', () => setTimeout(enviar, 400))
+  else enviar()
+}
+app.on('second-instance', (_e, argv) => {
+  const m = mailtoDe(argv)
+  if (m) abrirMailto(m)
+  else mostrar()
+})
 const portapapeles = servicio.portapapeles
 
 // Métodos que la interfaz puede llamar. Nada más pasa por IPC.
@@ -335,6 +349,8 @@ app.whenReady().then(() => {
 
   crearVentana()
   if (!captura) crearBandeja()
+  const mailto = mailtoDe(process.argv)
+  if (mailto) abrirMailto(mailto)
   servicio.arrancar()
   app.on('activate', () => mostrar())
 })
