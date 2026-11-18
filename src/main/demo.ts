@@ -195,6 +195,19 @@ export function sembrar(db: Db) {
     }
   }
   db.guardarMensajes(filas)
+  // Boletines de ejemplo (para la vista Suscripciones): cómo darse de baja de cada uno.
+  const baja = (unClic: boolean, correo: boolean, web = true) =>
+    JSON.stringify({ web: web ? ['https://ejemplo.com/baja'] : [], correo: correo ? 'mailto:baja@ejemplo.com?subject=unsubscribe' : null, unClic })
+  const boletines: [string, string][] = [
+    ['no-reply@spotify.com', baja(true, false)],
+    ['notifications@vercel.com', baja(true, true)],
+    ['noreply@github.com', baja(false, true)],
+    ['avisos@banco-ejemplo.es', baja(false, false)],
+    ['no-reply@figma.com', baja(true, false)],
+    ['comments-noreply@figma.com', baja(true, false)],
+  ]
+  for (const [dir, b] of boletines) db.sql.prepare('UPDATE mensajes SET baja = ? WHERE lower(de_dir) = ?').run(b, dir)
+  db.sql.prepare("UPDATE mensajes SET baja = '' WHERE baja IS NULL").run()
 }
 
 export function cuerpoDemo(m: Mensaje): Cuerpo {

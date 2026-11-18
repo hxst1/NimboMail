@@ -124,6 +124,8 @@ export interface NuevoMensaje {
   respondido: boolean
   adjuntos: number
   parteTexto: string | null
+  baja?: string | null
+  lista?: string | null
 }
 
 export const idMensaje = (cuenta: string, carpeta: string, uid: number) => `${cuenta}\u0000${carpeta}\u0000${uid}`
@@ -137,6 +139,16 @@ export class Db {
   constructor(ruta: string) {
     this.sql = new DatabaseSync(ruta)
     this.sql.exec(ESQUEMA)
+    // Migraciones de columnas añadidas después (SQLite no tiene ADD COLUMN IF NOT EXISTS).
+    const columnas = new Set((this.sql.prepare('PRAGMA table_info(mensajes)').all() as { name: string }[]).map((c) => c.name))
+    // baja: cómo darse de baja (JSON de List-Unsubscribe; '' = no tiene; NULL = aún no se ha mirado)
+    if (!columnas.has('baja')) this.sql.exec('ALTER TABLE mensajes ADD COLUMN baja TEXT')
+    if (!columnas.has('lista')) this.sql.exec('ALTER TABLE mensajes ADD COLUMN lista TEXT') // List-Id
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS bajas (
+      clave TEXT PRIMARY KEY,   -- remitente o lista
+      fecha INTEGER NOT NULL,
+      metodo TEXT NOT NULL      -- un-clic | correo | web
+    )`)
   }
 
   transaccion<T>(fn: () => T): T {
@@ -242,8 +254,8 @@ export class Db {
     this.transaccion(() => {
       const ins = this.sql.prepare(
         `INSERT INTO mensajes (id, cuenta, carpeta, uid, msgid, en_respuesta, referencias, hilo, de_nombre, de_dir,
-           para, cc, asunto, vista, fecha, leido, marcado, respondido, adjuntos, parte_texto)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           para, cc, asunto, vista, fecha, leido, marcado, respondido, adjuntos, parte_texto, baja, lista)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (id) DO UPDATE SET leido = excluded.leido, marcado = excluded.marcado,
            respondido = excluded.respondido,
            vista = CASE WHEN excluded.vista <> '' THEN excluded.vista ELSE mensajes.vista END`,
@@ -261,7 +273,7 @@ export class Db {
         ins.run(
           id, m.cuenta, m.carpeta, m.uid, m.msgid, m.enRespuesta, JSON.stringify(m.referencias), m.hilo,
           m.de.nombre, m.de.direccion, JSON.stringify(m.para), JSON.stringify(m.cc), m.asunto, m.vista, m.fecha,
-          +m.leido, +m.marcado, +m.respondido, m.adjuntos, m.parteTexto,
+          +m.leido, +m.marcado, +m.respondido, m.adjuntos, m.parteTexto, m.baja ?? null, m.lista ?? null,
         )
         if (nuevo) {
           fts.run(id, `${m.de.nombre} ${m.de.direccion}`, m.asunto, m.vista)
@@ -499,6 +511,90 @@ export class Db {
     this.sql.prepare('UPDATE remotos SET estado = ?, tipo = ? WHERE suma = ?').run(estado, tipo, suma)
   }
 
+  // ------------------------------------------------------------ suscripciones (boletines)
+
+  /** Mensajes de una carpeta a los que aún no se les han mirado las cabeceras de baja. */
+  sinBaja(cuenta: string, carpeta: string, limite: number) {
+    return (
+      this.sql
+        .prepare('SELECT uid FROM mensajes WHERE cuenta = ? AND carpeta = ? AND baja IS NULL AND uid > 0 ORDER BY fecha DESC LIMIT ?')
+        .all(cuenta, carpeta, limite) as { uid: number }[]
+    ).map((f) => f.uid)
+  }
+
+  guardarBaja(id: string, baja: string, lista: string | null) {
+    this.sql.prepare('UPDATE mensajes SET baja = ?, lista = coalesce(?, lista) WHERE id = ?').run(baja, lista, id)
+  }
+
+  /**
+   * Remitentes con boletines: agrupados por lista (List-Id) o por dirección, con cuántos correos hay,
+   * cuántos sin leer y cómo darse de baja (el del correo más reciente).
+   */
+  suscripciones() {
+    return this.sql
+      .prepare(
+        `WITH b AS (
+           SELECT m.id, m.cuenta, m.de_nombre, m.de_dir, m.baja, m.fecha, m.leido, c.rol,
+                  coalesce(nullif(m.lista, ''), lower(m.de_dir)) AS clave
+           FROM mensajes m JOIN carpetas c ON c.cuenta = m.cuenta AND c.ruta = m.carpeta
+           WHERE m.baja IS NOT NULL AND m.baja <> '' AND c.rol NOT IN ('sent', 'drafts', 'all')
+         ),
+         -- Cifras de cada remitente en una sola pasada.
+         g AS (
+           SELECT cuenta, clave, COUNT(*) AS total, SUM(leido = 0) AS sin_leer,
+                  SUM(rol NOT IN ('trash', 'junk')) AS a_la_vista
+           FROM b GROUP BY cuenta, clave
+         ),
+         -- Y su correo más reciente (nombre, dirección y cómo darse de baja).
+         u AS (
+           SELECT * FROM (SELECT b.*, row_number() OVER (PARTITION BY cuenta, clave ORDER BY fecha DESC) AS rn FROM b) WHERE rn = 1
+         )
+         SELECT u.clave, u.cuenta, u.de_nombre AS nombre, u.de_dir AS direccion, u.baja, u.id AS ultimo, u.fecha AS ultima,
+                g.total, g.sin_leer, g.a_la_vista, d.fecha AS baja_fecha, d.metodo AS baja_metodo
+         FROM u JOIN g ON g.cuenta = u.cuenta AND g.clave = u.clave
+         LEFT JOIN bajas d ON d.clave = u.cuenta || '|' || u.clave
+         ORDER BY total DESC, ultima DESC`,
+      )
+      .all() as {
+      clave: string
+      cuenta: string
+      nombre: string
+      direccion: string
+      baja: string
+      ultimo: string
+      ultima: number
+      total: number
+      sin_leer: number
+      a_la_vista: number
+      baja_fecha: number | null
+      baja_metodo: string | null
+    }[]
+  }
+
+  /** Los correos de una suscripción que aún están a la vista (para archivarlos o tirarlos de una vez). */
+  idsDeSuscripcion(cuenta: string, clave: string): string[] {
+    return (
+      this.sql
+        .prepare(
+          `SELECT m.id FROM mensajes m JOIN carpetas c ON c.cuenta = m.cuenta AND c.ruta = m.carpeta
+           WHERE m.cuenta = ? AND coalesce(nullif(m.lista, ''), lower(m.de_dir)) = ? AND m.baja <> ''
+             AND c.rol NOT IN ('sent', 'drafts', 'all', 'trash', 'junk')`,
+        )
+        .all(cuenta, clave) as { id: string }[]
+    ).map((f) => f.id)
+  }
+
+  apuntarBaja(clave: string, metodo: string) {
+    this.sql.prepare('INSERT OR REPLACE INTO bajas (clave, fecha, metodo) VALUES (?, ?, ?)').run(clave, Date.now(), metodo)
+  }
+
+  /** Cómo darse de baja de un mensaje concreto (para el botón del lector). */
+  bajaDe(id: string) {
+    return this.sql.prepare("SELECT cuenta, baja, coalesce(nullif(lista, ''), lower(de_dir)) AS clave FROM mensajes WHERE id = ?").get(id) as
+      | { cuenta: string; baja: string | null; clave: string }
+      | undefined
+  }
+
   /** Cuerpos guardados con una invitación adjunta que aún no se ha leído para el calendario. */
   cuerposConCalendario() {
     return this.sql
@@ -566,5 +662,6 @@ function aMensaje(f: FilaMensaje): Mensaje {
     respondido: !!f.respondido,
     adjuntos: f.adjuntos,
     enHilo: f.en_hilo ?? 1,
+    baja: !!(f as unknown as { baja?: string | null }).baja,
   }
 }

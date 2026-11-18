@@ -41,6 +41,7 @@ export interface Mensaje {
   respondido: boolean
   adjuntos: number
   enHilo: number // mensajes del hilo (1 si va solo)
+  baja?: boolean // es un boletín con forma de darse de baja (List-Unsubscribe)
 }
 
 export interface Adjunto {
@@ -172,3 +173,21 @@ export const AVISOS: { minutos: number; texto: string }[] = [
   { minutos: 2880, texto: '2 días' },
   { minutos: 10080, texto: '1 semana' },
 ]
+
+// ------------------------------------------------------------ suscripciones
+
+/** Un remitente de boletines (o una lista), con cómo darse de baja. */
+export interface Suscripcion {
+  clave: string // List-Id o dirección
+  cuenta: string
+  nombre: string
+  direccion: string
+  ultimo: string // id del correo más reciente
+  ultima: number
+  total: number
+  sinLeer: number
+  aLaVista: number // los que no están en la papelera ni en spam
+  metodo: 'un-clic' | 'correo' | 'web' // cómo se daría de baja
+  bajaFecha: number | null // cuándo se pidió la baja desde TuxMail
+  bajaMetodo: string | null
+}

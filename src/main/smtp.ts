@@ -95,6 +95,23 @@ export class Smtp {
     }
   }
 
+  /** Un correo de texto sencillo (por ejemplo, el de darse de baja de un boletín). */
+  async enviarTexto(c: ConfigCuenta, d: { para: string; asunto: string; texto: string }) {
+    const t = nodemailer.createTransport({
+      host: c.smtp,
+      port: c.smtpPuerto,
+      secure: c.smtpPuerto === 465,
+      requireTLS: c.smtpPuerto !== 465,
+      auth: await credencialesSmtp(c),
+      tls: opcionesTls(c),
+    })
+    try {
+      await t.sendMail({ from: { name: c.nombre, address: c.direccion }, to: d.para, subject: d.asunto, text: d.texto })
+    } finally {
+      t.close()
+    }
+  }
+
   /** Envía por SMTP (sin la cabecera Bcc, como debe ser). */
   async enviar(c: ConfigCuenta, b: Borrador, ids: { messageId: string; date: Date }) {
     const t = nodemailer.createTransport({

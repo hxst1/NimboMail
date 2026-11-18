@@ -15,6 +15,7 @@ export const FAVORITOS: { clave: string; texto: string }[] = [
   { clave: 'fav:enviados', texto: 'Todos los enviados' },
   { clave: 'fav:calendario', texto: 'Calendario' },
   { clave: 'fav:hoy', texto: 'Hoy (buzón inteligente)' },
+  { clave: 'fav:suscripciones', texto: 'Suscripciones (boletines)' },
 ]
 export const claveCarpeta = (c: Carpeta) => `carpeta:${c.id}`
 

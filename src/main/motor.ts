@@ -8,6 +8,7 @@ import { idMensaje, type Db, type NuevoMensaje } from './db'
 import { contarAdjuntos, decodificarParte, parteTexto, vistaPrevia, type NodoEstructura } from './texto'
 import { apuntarAdjuntos, guardarAdjuntos, type AdjuntoPendiente } from './adjuntos'
 import { tieneRemotas, type Remotas } from './remoto'
+import { CABECERAS_BAJA, infoBaja, leerCabeceras, listaId } from './baja'
 
 const MAX_POR_CARPETA = 5000 // mensajes más recientes que se guardan de cada carpeta
 const LOTE = 250
@@ -246,7 +247,7 @@ export class Motor extends EventEmitter {
           const filas: NuevoMensaje[] = []
           for await (const m of cli.fetch(
             lote,
-            { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true, threadId: this.cuenta.gmail, headers: ['references'] },
+            { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true, threadId: this.cuenta.gmail, headers: ['references', ...CABECERAS_BAJA] },
             { uid: true },
           )) {
             filas.push(this.aFila(m, ruta))
@@ -264,6 +265,8 @@ export class Motor extends EventEmitter {
 
         // 4. Vistas previas: un trocito de la parte de texto, agrupando por número de parte.
         await this.rellenarVistas(cli, ruta)
+        // 5. Cabeceras de baja de lo que ya estaba (boletines).
+        await this.rellenarBajas(cli, ruta)
       } finally {
         lock.release()
       }
@@ -283,7 +286,8 @@ export class Motor extends EventEmitter {
 
   private aFila(m: FetchMessageObject, ruta: string): NuevoMensaje {
     const env = m.envelope ?? {}
-    const refs = m.headers ? (m.headers.toString('latin1').match(/<[^>]+>/g) ?? []) : []
+    const cab = leerCabeceras(m.headers)
+    const refs = cab.references?.match(/<[^>]+>/g) ?? []
     const msgid = env.messageId ?? null
     const enRespuesta = env.inReplyTo?.match(/<[^>]+>/)?.[0] ?? null
     const estructura = m.bodyStructure as NodoEstructura | undefined
@@ -312,6 +316,32 @@ export class Motor extends EventEmitter {
       respondido: f.respondido,
       adjuntos: estructura ? contarAdjuntos(estructura) : 0,
       parteTexto: parte ? JSON.stringify(parte) : null,
+      baja: infoBaja(cab),
+      lista: listaId(cab),
+    }
+  }
+
+  /**
+   * Cabeceras de baja (List-Unsubscribe, List-Id) de los correos que ya estaban en la caché antes de
+   * leerlas: se piden en lotes, que son solo unas líneas por correo.
+   */
+  private async rellenarBajas(cli: ImapFlow, ruta: string) {
+    const rol = this.db.carpeta(this.cuenta.id, ruta)?.rol
+    if (!rol || ['sent', 'drafts', 'all'].includes(rol)) return
+    for (let vuelta = 0; vuelta < 40; vuelta++) {
+      const uids = this.db.sinBaja(this.cuenta.id, ruta, 500)
+      if (!uids.length) return
+      const leidas: { uid: number; baja: string; lista: string | null }[] = []
+      for await (const m of cli.fetch(uids, { uid: true, headers: CABECERAS_BAJA }, { uid: true })) {
+        const c = leerCabeceras(m.headers)
+        leidas.push({ uid: m.uid, baja: infoBaja(c), lista: listaId(c) })
+      }
+      const vistos = new Set(leidas.map((l) => l.uid))
+      this.db.transaccion(() => {
+        for (const l of leidas) this.db.guardarBaja(idMensaje(this.cuenta.id, ruta, l.uid), l.baja, l.lista)
+        // Los que el servidor ya no tiene: que no se vuelvan a pedir.
+        for (const u of uids) if (!vistos.has(u)) this.db.guardarBaja(idMensaje(this.cuenta.id, ruta, u), '', null)
+      })
     }
   }
 

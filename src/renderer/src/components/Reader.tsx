@@ -223,6 +223,8 @@ function Tarjeta(p: {
   const { cuerpo, error } = useCuerpo(m.id, p.abierta)
   const adjuntos = cuerpo?.adjuntos.filter((a) => !a.inline) ?? []
 
+  const [bajaPedida, setBajaPedida] = useState(false)
+
   // ---- invitación de calendario que trae el correo (en su estado actual)
   const [invitacion, setInvitacion] = useState<Instancia | null>(null)
   useEffect(() => {
@@ -474,7 +476,40 @@ function Tarjeta(p: {
         <div className="avatar">{iniciales(remitente)}</div>
         <div className="cabecera-datos">
           <div className="cabecera-linea">
-            <span className="cabecera-de">{persona(m.de, p.mio ? `${remitente} (tú)` : remitente)}</span>
+            <span className="cabecera-de">
+              {persona(m.de, p.mio ? `${remitente} (tú)` : remitente)}
+              {p.abierta && m.baja && !p.mio && (
+                <button
+                  className={`cabecera-baja${bajaPedida ? ' hecha' : ''}`}
+                  disabled={bajaPedida}
+                  title="Darse de baja de este boletín"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    ui.abrirMenu({
+                      x: e.clientX,
+                      y: e.clientY + 10,
+                      elementos: [
+                        {
+                          etiqueta: `Darse de baja de ${remitente}`,
+                          icono: <Prohibit size={15} />,
+                          accion: async () => {
+                            try {
+                              const metodo = await api.darseDeBajaDe(m.id)
+                              setBajaPedida(true)
+                              ui.avisar(metodo === 'web' ? 'Se ha abierto su página de baja' : `Baja pedida a ${remitente}`)
+                            } catch (err) {
+                              ui.avisar(`No se pudo: ${(err as Error).message}`)
+                            }
+                          },
+                        },
+                      ],
+                    })
+                  }}
+                >
+                  {bajaPedida ? 'Baja pedida' : 'Darse de baja'}
+                </button>
+              )}
+            </span>
             <span className="cabecera-fecha">{p.abierta ? fechaLarga(m.fecha) : fechaLista(m.fecha)}</span>
           </div>
           {p.abierta ? (

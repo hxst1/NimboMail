@@ -7,7 +7,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { simpleParser, type AddressObject } from 'mailparser'
-import type { AdjuntoBorrador, Borrador, Buzon, Cuerpo, Datos, DatosRespuesta, Direccion, EstadoCuenta, Mensaje, RolCarpeta } from '@shared/tipos'
+import type { AdjuntoBorrador, Borrador, Buzon, Cuerpo, Datos, DatosRespuesta, Direccion, EstadoCuenta, Mensaje, RolCarpeta, Suscripcion } from '@shared/tipos'
+import { shell } from 'electron'
+import type { InfoBaja } from './baja'
 import { borrarSecreto, escribirCuentas, guardarSecreto, leerCuentas, SinClave, type ConfigCuenta, type TipoAuth } from './cuentas'
 import { detectar, probar, type Servidores } from './autoconfig'
 import { iniciarSesion, oauthDisponible, type IdOAuth } from './oauth'
@@ -436,6 +438,90 @@ export class Servicio extends EventEmitter {
       if (s?.isFile()) out.push({ nombre: ruta.split('/').pop() ?? 'archivo', tamano: s.size, ruta })
     }
     return out
+  }
+
+  // ------------------------------------------------------------ suscripciones (boletines)
+
+  suscripciones(): Suscripcion[] {
+    return this.db.suscripciones().map((f) => {
+      const info = JSON.parse(f.baja) as InfoBaja
+      return {
+        clave: f.clave,
+        cuenta: f.cuenta,
+        nombre: f.nombre,
+        direccion: f.direccion,
+        ultimo: f.ultimo,
+        ultima: f.ultima,
+        total: f.total,
+        sinLeer: f.sin_leer,
+        aLaVista: f.a_la_vista,
+        metodo: info.unClic ? 'un-clic' : info.correo ? 'correo' : 'web',
+        bajaFecha: f.baja_fecha,
+        bajaMetodo: f.baja_metodo,
+      }
+    })
+  }
+
+  /**
+   * Darse de baja: de un clic si el remitente lo admite (RFC 8058, sin abrir nada), si no con el
+   * correo de baja desde la cuenta que lo recibe y, como último recurso, abriendo su página.
+   */
+  async darseDeBaja(cuenta: string, clave: string, info: InfoBaja): Promise<'un-clic' | 'correo' | 'web'> {
+    let metodo: 'un-clic' | 'correo' | 'web' | null = null
+    if (info.unClic && info.web[0] && !this.demo) {
+      try {
+        const r = await fetch(info.web[0], {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64)' },
+          body: 'List-Unsubscribe=One-Click',
+          credentials: 'omit',
+          redirect: 'follow',
+          signal: AbortSignal.timeout(20_000),
+        })
+        if (r.ok) metodo = 'un-clic'
+      } catch {
+        /* se prueba por correo */
+      }
+    }
+    if (!metodo && info.correo && !this.demo) {
+      const u = new URL(info.correo)
+      const c = this.config(cuenta)
+      await this.smtp.enviarTexto(c, {
+        para: decodeURIComponent(u.pathname),
+        asunto: u.searchParams.get('subject') || 'unsubscribe',
+        texto: u.searchParams.get('body') || 'unsubscribe',
+      })
+      metodo = 'correo'
+    }
+    if (!metodo && this.demo) metodo = info.unClic ? 'un-clic' : info.correo ? 'correo' : 'web'
+    if (!metodo) {
+      const web = info.web[0]
+      if (!web) throw new Error('Este remitente no ofrece forma de darse de baja')
+      await shell.openExternal(web)
+      metodo = 'web'
+    }
+    this.db.apuntarBaja(`${cuenta}|${clave}`, metodo)
+    this.cambios()
+    return metodo
+  }
+
+  async darseDeBajaDe(id: string) {
+    const b = this.db.bajaDe(id)
+    if (!b?.baja) throw new Error('Este correo no ofrece forma de darse de baja')
+    return this.darseDeBaja(b.cuenta, b.clave, JSON.parse(b.baja) as InfoBaja)
+  }
+
+  async darseDeBajaClave(cuenta: string, clave: string) {
+    const s = this.db.suscripciones().find((x) => x.cuenta === cuenta && x.clave === clave)
+    if (!s) throw new Error('Suscripción no encontrada')
+    return this.darseDeBaja(cuenta, clave, JSON.parse(s.baja) as InfoBaja)
+  }
+
+  /** Todos los correos de una suscripción a la papelera, al archivo o a spam (se puede deshacer). */
+  async limpiarSuscripcion(cuenta: string, clave: string, destino: 'trash' | 'archive' | 'junk') {
+    const ids = this.db.idsDeSuscripcion(cuenta, clave)
+    if (ids.length) await this.mover(ids, { rol: destino })
+    return ids.length
   }
 
   // ------------------------------------------------------------ calendario

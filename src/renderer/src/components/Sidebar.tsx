@@ -9,6 +9,7 @@ import {
   Folder,
   GearSix,
   EyeSlash,
+  Newspaper,
   Sun,
   PaperPlaneTilt,
   Prohibit,
@@ -46,13 +47,16 @@ interface Props {
   onArreglarCuenta: (id: string) => void // «Falta la contraseña» / sin conexión
   calendarioActivo: boolean
   onCalendario: () => void
+  suscripcionesActivo: boolean
+  onSuscripciones: () => void
   ocultos: Set<string> // favoritos y carpetas que no se quieren ver
   onOcultarElemento: (clave: string) => void
   onAjustes: () => void
 }
 
 export function Sidebar({
-  correo, onOcultar, onAnadirCuenta, onMenuCuenta, onArreglarCuenta, calendarioActivo, onCalendario, ocultos, onOcultarElemento, onAjustes,
+  correo, onOcultar, onAnadirCuenta, onMenuCuenta, onArreglarCuenta, calendarioActivo, onCalendario, suscripcionesActivo, onSuscripciones,
+  ocultos, onOcultarElemento, onAjustes,
 }: Props) {
   const ui = useInterfaz()
   const ve = (clave: string) => !ocultos.has(clave)
@@ -80,7 +84,7 @@ export function Sidebar({
     desplegable?: string
     ocultable?: string // clave para ocultarlo con clic derecho
   }) {
-    const activo = !calendarioActivo && mismoBuzon(buzon, p.buzon)
+    const activo = !calendarioActivo && !suscripcionesActivo && mismoBuzon(buzon, p.buzon)
     const Ico = p.icono
     return (
       <div
@@ -182,9 +186,23 @@ export function Sidebar({
           </Seccion>
         )}
 
-        {ve('fav:hoy') && (
+        {(ve('fav:hoy') || ve('fav:suscripciones')) && (
           <Seccion titulo="Buzones inteligentes">
-            <Item buzon={{ tipo: 'hoy' }} icono={Sun} texto="Hoy" contador={contar({ tipo: 'hoy' })} ocultable="fav:hoy" />
+            {ve('fav:hoy') && <Item buzon={{ tipo: 'hoy' }} icono={Sun} texto="Hoy" contador={contar({ tipo: 'hoy' })} ocultable="fav:hoy" />}
+            {ve('fav:suscripciones') && (
+              <div
+                className={`sb-item${suscripcionesActivo ? ' activo' : ''}`}
+                style={{ paddingLeft: 10 }}
+                onClick={onSuscripciones}
+                onContextMenu={menuOcultar('fav:suscripciones')}
+              >
+                <span className="sb-caret vacio">
+                  <CaretRight size={10} weight="bold" />
+                </span>
+                <Newspaper className="sb-icono" size={18} weight="regular" />
+                <span className="sb-texto">Suscripciones</span>
+              </div>
+            )}
           </Seccion>
         )}
 

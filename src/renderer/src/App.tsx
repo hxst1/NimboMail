@@ -13,6 +13,7 @@ import { VistaRapida } from '@/components/VistaRapida'
 import { Redactar } from '@/components/Redactar'
 import { NuevaCuenta } from '@/components/NuevaCuenta'
 import { Calendario } from '@/components/Calendario'
+import { Suscripciones } from '@/components/Suscripciones'
 import { EditorEvento, type NuevoEvento } from '@/components/EditorEvento'
 import type { Instancia } from '@shared/tipos'
 import { useAcento } from '@/components/Acento'
@@ -95,7 +96,13 @@ export function App() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuAbierto | null>(null)
   const [redactando, setRedactando] = useState<OpcionesRedactar | null>(null)
-  const [enCalendario, setEnCalendario] = useState(false)
+  const [enCalendario, setEnCalendarioBase] = useState(false)
+  const [enSuscripciones, setEnSuscripciones] = useState(false)
+  // El calendario y las suscripciones sustituyen a la lista y al lector: uno u otro.
+  const setEnCalendario = useCallback((v: boolean) => {
+    setEnCalendarioBase(v)
+    if (v) setEnSuscripciones(false)
+  }, [])
   const [irADia, setIrADia] = useState<number | null>(null) // al pulsar un aviso: el calendario en ese día
   const [editorEvento, setEditorEvento] = useState<{ existente?: Instancia; nuevo?: NuevoEvento } | null>(null)
   useEffect(
@@ -107,7 +114,10 @@ export function App() {
     [],
   )
   // Elegir un buzón en la barra lateral vuelve al correo.
-  useEffect(() => setEnCalendario(false), [correo.buzon])
+  useEffect(() => {
+    setEnCalendario(false)
+    setEnSuscripciones(false)
+  }, [correo.buzon, setEnCalendario])
   const [alta, setAlta] = useState<{ cuenta?: string } | null>(null) // añadir cuenta o poner su contraseña
   const [burbuja, setBurbuja] = useState<{ x: number; y: number; texto: string } | null>(null)
   const cerrarMenu = useCallback(() => setMenu(null), [])
@@ -364,7 +374,7 @@ export function App() {
   // Atajos de teclado de Mail (Cmd → Ctrl).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (vista || redactando || alta || verAjustes || editorEvento || enCalendario) return // el calendario tiene sus propias teclas // la vista rápida y la ventana de redactar tienen sus propias teclas
+      if (vista || redactando || alta || verAjustes || editorEvento || enCalendario || enSuscripciones) return // el calendario tiene sus propias teclas // la vista rápida y la ventana de redactar tienen sus propias teclas
       const enCampo = (e.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]')
       const k = e.key.toLowerCase()
       if (e.ctrlKey && !e.shiftKey && k === 'f') return e.preventDefault(), setFocoBusqueda(Date.now())
@@ -424,6 +434,11 @@ export function App() {
           onAnadirCuenta={() => setAlta({})}
           onMenuCuenta={menuCuenta}
           calendarioActivo={enCalendario}
+          suscripcionesActivo={enSuscripciones}
+          onSuscripciones={() => {
+            setEnCalendario(false)
+            setEnSuscripciones(true)
+          }}
           ocultos={ocultos}
           onOcultarElemento={(clave) => cambiarOcultos((previo) => new Set([...previo, clave]))}
           onAjustes={() => setVerAjustes(true)}
@@ -438,6 +453,14 @@ export function App() {
       <main className="principal">
         {enCalendario ? (
           <Calendario key={irADia ?? 'cal'} irA={irADia} onCerrar={() => setEnCalendario(false)} onAbrirCorreo={abrirCorreo} />
+        ) : enSuscripciones ? (
+          <Suscripciones
+            onCerrar={() => setEnSuscripciones(false)}
+            onVerCorreos={(direccion) => {
+              setEnSuscripciones(false)
+              correo.setBusqueda(direccion)
+            }}
+          />
         ) : (
           <>
         <Toolbar

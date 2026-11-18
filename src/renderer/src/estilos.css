@@ -2689,3 +2689,209 @@ a.tb-boton {
   background: rgba(184, 101, 106, 0.2);
   color: #e0b2b5;
 }
+
+.cabecera-baja {
+  margin-left: 9px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--texto-2);
+  vertical-align: 1px;
+}
+.cabecera-baja:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--texto);
+}
+.cabecera-baja.hecha {
+  background: transparent;
+  color: var(--texto-3);
+}
+
+/* ---------------------------------------------------------------- suscripciones */
+
+.suscripciones {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 20px 8px;
+}
+.su-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.su-cabeza > div:first-child {
+  margin-right: auto;
+}
+.su-cabeza h1 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 600;
+  color: var(--texto);
+}
+.su-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--texto-3);
+}
+.su-buscar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--texto-3);
+}
+.su-buscar input {
+  width: 180px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--texto);
+  font: 13px Inter, sans-serif;
+}
+.su-filtro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--texto-2);
+}
+.su-filtro input,
+.su-fila > input {
+  accent-color: var(--acento);
+}
+.su-barra-seleccion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  color: var(--texto);
+}
+.su-barra-seleccion span {
+  margin-right: auto;
+}
+.su-barra-seleccion button,
+.su-limpiar,
+.su-baja {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 12.5px;
+  color: var(--texto);
+  white-space: nowrap;
+}
+.su-barra-seleccion button.destacado,
+.su-baja.destacado {
+  background: var(--acento);
+  color: #141516;
+  font-weight: 600;
+}
+.su-baja:disabled,
+.su-limpiar:disabled {
+  opacity: 0.6;
+}
+.su-lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.su-vacio {
+  padding: 30px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--texto-3);
+}
+.su-fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.su-fila:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+.su-fila.elegida {
+  box-shadow: inset 0 0 0 1px var(--acento);
+}
+.su-fila.dada .su-datos {
+  opacity: 0.6;
+}
+.su-datos {
+  flex: 1;
+  min-width: 0;
+}
+.su-nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.su-cuenta {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--texto-3);
+}
+.su-dir {
+  font-size: 12px;
+  color: var(--texto-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.su-cifras {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--texto-2);
+}
+.su-cifras b {
+  color: var(--texto);
+}
+.su-metodo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 11.5px;
+  color: var(--texto-2);
+  white-space: nowrap;
+}
+.su-metodo.un-clic {
+  color: var(--texto);
+}
+.su-hecha {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--texto-2);
+  white-space: nowrap;
+}
