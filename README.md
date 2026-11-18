@@ -20,6 +20,7 @@ Conversaciones bien hiladas, imágenes protegidas contra el rastreo, traductor i
 - **Calendario**: las invitaciones que llegan por correo (Google Meet, Teams, Zoom…) se convierten en eventos con **Unirse** y **Aceptar / Quizá / Rechazar**, que responde al organizador como cualquier calendario. Se actualizan solas si cambian o se cancelan. Puedes suscribirte también a calendarios por enlace iCal (festivos, la dirección secreta de Google Calendar…). Vista mes y semana, sin necesidad de entrar con Google ni Microsoft.
 - **Vista rápida** de imágenes y PDF con la barra espaciadora.
 - **Deshacer** (`Ctrl+Z`) para archivar, borrar, mover y marcar.
+- **Ajustes** (la rueda de abajo a la izquierda): color de resaltado, disposición, traducción, cuentas, calendarios y qué se ve en la barra lateral (favoritos y carpetas de cada cuenta; también con clic derecho → «Ocultar»).
 - **Colores de resaltado** a elegir y una estética oscura y sobria (paleta *Niebla*).
 
 | | |

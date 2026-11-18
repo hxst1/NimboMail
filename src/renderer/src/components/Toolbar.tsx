@@ -7,7 +7,6 @@ import {
   ArrowBendUpRight,
   CaretDown,
   Columns,
-  DotsThree,
   Flag,
   FolderSimple,
   FunnelSimple,
@@ -51,7 +50,6 @@ export type AccionBarra =
   | 'mover'
   | 'marcar'
   | 'disposicion'
-  | 'mas'
   | 'actualizar'
 
 function Boton(p: { icono: Icon; titulo: string; onClick: () => void; activo?: boolean; disabled?: boolean; peso?: 'regular' | 'fill'; clase?: string; caret?: boolean }) {
@@ -101,7 +99,6 @@ export function Toolbar(p: Props) {
             titulo={p.disposicion === 'columnas' ? 'Lista ancha' : 'Lista y mensaje en columnas'}
             onClick={() => p.onAccion('disposicion')}
           />
-          <Boton icono={DotsThree} titulo="Más" onClick={() => p.onAccion('mas')} />
         </div>
 
         <div className="capsula">

@@ -13,7 +13,8 @@ import { VistaRapida } from '@/components/VistaRapida'
 import { Redactar } from '@/components/Redactar'
 import { NuevaCuenta } from '@/components/NuevaCuenta'
 import { Calendario } from '@/components/Calendario'
-import { SelectorAcento, useAcento } from '@/components/Acento'
+import { useAcento } from '@/components/Acento'
+import { Ajustes } from '@/components/Ajustes'
 import { miles } from '@/formato'
 import {
   BurbujaTraduccion, InterfazContexto, MenuContextual, type ElementoMenu, type Interfaz, type MenuAbierto, type OpcionesRedactar,
@@ -68,7 +69,23 @@ export function App() {
     if (!correo.seleccion && vistaForzada !== 'ancha-abierta') setAbierto(false)
   }, [correo.seleccion, vistaForzada])
   const [menuMover, setMenuMover] = useState(false)
-  const [menuMas, setMenuMas] = useState<number | null>(null) // distancia al borde derecho
+  const [verAjustes, setVerAjustes] = useState(false)
+  // Lo que se ha ocultado de la barra lateral (favoritos y carpetas), en este equipo.
+  const [ocultos, setOcultos] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('barraOcultos') ?? '[]') as string[])
+    } catch {
+      return new Set()
+    }
+  })
+  // Acepta un conjunto nuevo o una función sobre el anterior (varios cambios seguidos no se pisan).
+  const cambiarOcultos = useCallback((n: Set<string> | ((previo: Set<string>) => Set<string>)) => {
+    setOcultos((previo) => {
+      const nuevo = typeof n === 'function' ? n(previo) : n
+      guardarPreferencia('barraOcultos', JSON.stringify([...nuevo]))
+      return nuevo
+    })
+  }, [])
   const [acento, setAcento] = useAcento()
   const [focoBusqueda, setFocoBusqueda] = useState(0)
   const [hilo, setHilo] = useState<Mensaje[]>([])
@@ -305,12 +322,6 @@ export function App() {
         return moverA({ rol: 'junk' })
       case 'mover':
         return setMenuMover((v) => !v)
-      case 'mas': {
-        // El menú cuelga del propio botón «···».
-        const r = document.querySelector('[title="Más"]')?.getBoundingClientRect()
-        const principal = document.querySelector('.principal')?.getBoundingClientRect()
-        return setMenuMas((v) => (v !== null || !r || !principal ? null : Math.max(8, principal.right - r.right - 100)))
-      }
       case 'marcar':
         if (actual) api.marcar([actual.id], { marcado: !actual.marcado })
         return
@@ -331,7 +342,7 @@ export function App() {
   // Atajos de teclado de Mail (Cmd → Ctrl).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (vista || redactando || alta || enCalendario) return // el calendario tiene sus propias teclas // la vista rápida y la ventana de redactar tienen sus propias teclas
+      if (vista || redactando || alta || verAjustes || enCalendario) return // el calendario tiene sus propias teclas // la vista rápida y la ventana de redactar tienen sus propias teclas
       const enCampo = (e.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]')
       const k = e.key.toLowerCase()
       if (e.ctrlKey && !e.shiftKey && k === 'f') return e.preventDefault(), setFocoBusqueda(Date.now())
@@ -356,7 +367,7 @@ export function App() {
         if (lista[j]) correo.setSeleccion(lista[j].id)
       }
       if (k === 'enter' && actual && disposicion === 'ancha') setAbierto(true)
-      if (k === 'escape') setAbierto(false), setMenuMover(false), setMenuMas(null)
+      if (k === 'escape') setAbierto(false), setMenuMover(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -391,6 +402,9 @@ export function App() {
           onAnadirCuenta={() => setAlta({})}
           onMenuCuenta={menuCuenta}
           calendarioActivo={enCalendario}
+          ocultos={ocultos}
+          onOcultarElemento={(clave) => cambiarOcultos((previo) => new Set([...previo, clave]))}
+          onAjustes={() => setVerAjustes(true)}
           onCalendario={() => setEnCalendario(true)}
           onArreglarCuenta={(id) => {
             const c = datos.cuentas.find((x) => x.id === id)
@@ -422,24 +436,6 @@ export function App() {
           }}
           onAccion={accion}
         />
-        {menuMas !== null && (
-          <div className="menu-mas" style={{ right: menuMas }} onMouseLeave={() => setMenuMas(null)}>
-            <SelectorAcento acento={acento} onCambiar={setAcento} />
-            <div className="menu-mas-separador" />
-            <label className="menu-mas-opcion">
-              <input
-                type="checkbox"
-                checked={siempreTraducir}
-                onChange={(e) => {
-                  setSiempreTraducir(e.target.checked)
-                  guardarPreferencia(TRADUCIR_SIEMPRE, e.target.checked ? '1' : '0')
-                }}
-              />
-              <span>Traducir siempre los correos en inglés</span>
-              <kbd>Ctrl ⇧ T</kbd>
-            </label>
-          </div>
-        )}
         {menuMover && actual && (
           <div className="menu-mover" onMouseLeave={() => setMenuMover(false)}>
             {datos.carpetas
@@ -503,6 +499,30 @@ export function App() {
           bienvenida={datos.cuentas.length === 0}
           onCerrar={() => setAlta(null)}
           avisar={avisar}
+        />
+      )}
+      {verAjustes && (
+        <Ajustes
+          datos={datos}
+          acento={acento}
+          onAcento={setAcento}
+          disposicion={disposicion}
+          onDisposicion={(d) => {
+            guardarPreferencia('disposicion', d)
+            setAbierto(false)
+            setDisposicion(d)
+          }}
+          traducirSiempre={siempreTraducir}
+          onTraducirSiempre={(v) => {
+            setSiempreTraducir(v)
+            guardarPreferencia(TRADUCIR_SIEMPRE, v ? '1' : '0')
+          }}
+          ocultos={ocultos}
+          onOcultos={cambiarOcultos}
+          onAnadirCuenta={() => (setVerAjustes(false), setAlta({}))}
+          onClave={(id) => (setVerAjustes(false), setAlta({ cuenta: id }))}
+          avisar={avisar}
+          onCerrar={() => setVerAjustes(false)}
         />
       )}
       {menu && <MenuContextual menu={menu} onCerrar={cerrarMenu} />}
