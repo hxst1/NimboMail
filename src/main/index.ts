@@ -67,6 +67,7 @@ const API = {
   suscripciones: () => servicio.suscripciones(),
   darseDeBaja: (cuenta: string, clave: string) => servicio.darseDeBajaClave(cuenta, clave),
   darseDeBajaDe: (id: string) => servicio.darseDeBajaDe(id),
+  apuntarBaja: (cuenta: string, clave: string, metodo: string) => servicio.apuntarBaja(cuenta, clave, metodo),
   limpiarSuscripcion: (cuenta: string, clave: string, destino: 'trash' | 'archive' | 'junk') => servicio.limpiarSuscripcion(cuenta, clave, destino),
   calendarios: () => servicio.calendario.calendarios(),
   eventos: (desde: number, hasta: number) => servicio.calendario.instancias(desde, hasta),

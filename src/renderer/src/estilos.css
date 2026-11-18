@@ -2956,3 +2956,69 @@ a.tb-boton {
   color: #141516;
   box-shadow: none;
 }
+
+/* Grupos de suscripciones (una empresa con varios tipos de correo) */
+.su-grupo {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+}
+.su-grupo.abierto {
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.su-fila.grupo {
+  cursor: pointer;
+}
+.su-grupo.abierto > .su-fila.grupo {
+  background: transparent;
+  box-shadow: none;
+}
+.su-desplegar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--texto-2);
+  white-space: nowrap;
+}
+.su-flecha {
+  transition: transform 0.15s;
+}
+.su-grupo.abierto .su-flecha {
+  transform: rotate(90deg);
+}
+.su-subs {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 10px 10px 46px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+}
+.su-ayuda-grupo {
+  font-size: 12px;
+  color: var(--texto-3);
+  margin: 2px 0 2px;
+}
+.su-fila.sub {
+  background: rgba(255, 255, 255, 0.035);
+}
+.su-asunto {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--texto);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.su-fila input[type='checkbox'] {
+  accent-color: var(--acento);
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.su-lista-id {
+  color: var(--texto-3);
+}

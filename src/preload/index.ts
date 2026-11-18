@@ -14,7 +14,7 @@ const METODOS: (keyof ApiPrincipal)[] = [
   'detectarCuenta', 'oauthDisponibles', 'entrarConOAuth', 'probarCuenta', 'anadirCuenta', 'quitarCuenta', 'cambiarClave', 'volverAEntrar',
   'calendarios', 'eventos', 'invitacionDe', 'responderInvitacion', 'suscribirCalendario', 'quitarCalendario', 'mostrarCalendario',
   'actualizarCalendarios', 'sincronizar', 'colorCalendario', 'guardarEvento', 'borrarEvento', 'ponerAvisos', 'avisoReuniones',
-  'ponerAvisoReuniones', 'suscripciones', 'darseDeBaja', 'darseDeBajaDe', 'limpiarSuscripcion',
+  'ponerAvisoReuniones', 'suscripciones', 'darseDeBaja', 'darseDeBajaDe', 'limpiarSuscripcion', 'apuntarBaja',
   'crearCarpeta', 'renombrarCarpeta', 'borrarCarpeta', 'abrirEnlace',
 ]
 const llamar = Object.fromEntries(

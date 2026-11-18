@@ -364,7 +364,7 @@ export class Db {
    * Una fila por conversación, como Mail: el mensaje más reciente del hilo dentro del buzón,
    * y cuántos mensajes tiene el hilo en toda la cuenta (incluidos los enviados).
    */
-  lista(b: Buzon, busqueda: string, limite = 5000): Mensaje[] {
+  lista(b: Buzon, busqueda: string, limite = 50_000): Mensaje[] {
     const [donde, vals] = this.filtroBuzon(b)
     let extra = ''
     const args: SQLInputValue[] = [...vals]
@@ -534,7 +534,7 @@ export class Db {
     return this.sql
       .prepare(
         `WITH b AS (
-           SELECT m.id, m.cuenta, m.de_nombre, m.de_dir, m.baja, m.fecha, m.leido, c.rol,
+           SELECT m.id, m.cuenta, m.de_nombre, m.de_dir, m.asunto, m.baja, m.fecha, m.leido, c.rol,
                   coalesce(nullif(m.lista, ''), lower(m.de_dir)) AS clave
            FROM mensajes m JOIN carpetas c ON c.cuenta = m.cuenta AND c.ruta = m.carpeta
            WHERE m.baja IS NOT NULL AND m.baja <> '' AND c.rol NOT IN ('sent', 'drafts', 'all')
@@ -549,7 +549,7 @@ export class Db {
          u AS (
            SELECT * FROM (SELECT b.*, row_number() OVER (PARTITION BY cuenta, clave ORDER BY fecha DESC) AS rn FROM b) WHERE rn = 1
          )
-         SELECT u.clave, u.cuenta, u.de_nombre AS nombre, u.de_dir AS direccion, u.baja, u.id AS ultimo, u.fecha AS ultima,
+         SELECT u.clave, u.cuenta, u.de_nombre AS nombre, u.de_dir AS direccion, u.asunto, u.baja, u.id AS ultimo, u.fecha AS ultima,
                 g.total, g.sin_leer, g.a_la_vista, d.fecha AS baja_fecha, d.metodo AS baja_metodo
          FROM u JOIN g ON g.cuenta = u.cuenta AND g.clave = u.clave
          LEFT JOIN bajas d ON d.clave = u.cuenta || '|' || u.clave
@@ -560,6 +560,7 @@ export class Db {
       cuenta: string
       nombre: string
       direccion: string
+      asunto: string
       baja: string
       ultimo: string
       ultima: number

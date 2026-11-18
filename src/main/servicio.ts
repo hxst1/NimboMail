@@ -450,6 +450,7 @@ export class Servicio extends EventEmitter {
         cuenta: f.cuenta,
         nombre: f.nombre,
         direccion: f.direccion,
+        asunto: f.asunto,
         ultimo: f.ultimo,
         ultima: f.ultima,
         total: f.total,
@@ -515,6 +516,12 @@ export class Servicio extends EventEmitter {
     const s = this.db.suscripciones().find((x) => x.cuenta === cuenta && x.clave === clave)
     if (!s) throw new Error('Suscripción no encontrada')
     return this.darseDeBaja(cuenta, clave, JSON.parse(s.baja) as InfoBaja)
+  }
+
+  /** Apunta una baja sin contactar con nadie (otras campañas del mismo boletín ya dado de baja). */
+  apuntarBaja(cuenta: string, clave: string, metodo: string) {
+    this.db.apuntarBaja(`${cuenta}|${clave}`, metodo)
+    this.cambios()
   }
 
   /** Todos los correos de una suscripción a la papelera, al archivo o a spam (se puede deshacer). */

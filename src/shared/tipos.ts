@@ -182,6 +182,7 @@ export interface Suscripcion {
   cuenta: string
   nombre: string
   direccion: string
+  asunto: string // el de su último correo: deja claro qué tipo de correo es
   ultimo: string // id del correo más reciente
   ultima: number
   total: number

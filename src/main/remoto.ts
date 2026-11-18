@@ -81,6 +81,7 @@ export class Remotas {
     // 4. Hojas de estilo y fuentes remotas: fuera (casi nunca hacen falta y también rastrean).
     out = out.replace(/<link\b[^>]*\bhref\s*=\s*["']?\s*https?:[^>]*>/gi, '')
     out = out.replace(/@import\s+(?:url\()?\s*["']?https?:[^;]*;?/gi, '')
+    out = out.replace(/@font-face\s*\{[^}]*\}/gi, '') // tipografías web: no se cargan (la CSP tampoco las dejaría)
     // 5. url(...) en estilos (atributos style y bloques <style>). Sin comillas: la suma no lleva
     //    caracteres raros y así no se rompe un style="…" que ya va entre comillas.
     out = out.replace(/url\(\s*(?:&quot;|["'])?\s*(https?:[^"')]+?)\s*(?:&quot;|["'])?\s*\)/gi, (_m, u: string) => `url(${registrar(u)})`)
