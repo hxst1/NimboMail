@@ -131,8 +131,18 @@ button {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   padding: 0 12px;
+}
+.sb-hueco {
+  flex: 1;
+}
+/* Cerrar: discreto hasta pasar por encima; entonces, el acento de aviso de Niebla. */
+.boton-icono.cerrar-ventana {
+  color: var(--texto-3);
+}
+.boton-icono.cerrar-ventana:hover {
+  background: rgba(184, 101, 106, 0.22);
+  color: #e0b2b5;
 }
 
 .sb-scroll {

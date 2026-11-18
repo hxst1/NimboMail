@@ -7,7 +7,7 @@ type Api = { [K in keyof ApiPrincipal]: Promesa<ApiPrincipal[K]> }
 
 // contextBridge copia propiedades: hace falta un objeto normal con cada método, no un Proxy.
 const METODOS: (keyof ApiPrincipal)[] = [
-  'datos', 'lista', 'contadores', 'hilo', 'cuerpo', 'precargar', 'contactos', 'marcar', 'mover', 'deshacer',
+  'datos', 'lista', 'contadores', 'hilo', 'cuerpo', 'precargar', 'contactos', 'marcar', 'mover', 'deshacer', 'cerrarVentana', 'salir',
   'traductorListo', 'prepararTraductor', 'guardarTraduccion', 'borrarTraduccion',
   'copiarTexto', 'copiarImagen', 'copiarArchivo', 'guardarComo', 'abrirArchivo', 'buscarWeb', 'remitenteASpam',
   'prepararRespuesta', 'enviar', 'guardarBorrador', 'descartarBorrador', 'abrirBorrador', 'archivosDeUris', 'elegirArchivos',
@@ -58,6 +58,13 @@ const api = {
     ipcRenderer.on('tuxmail:ir-a-dia', h)
     return () => {
       ipcRenderer.removeListener('tuxmail:ir-a-dia', h)
+    }
+  },
+  alAccion: (fn: (accion: string) => void) => {
+    const h = (_e: unknown, a: string) => fn(a)
+    ipcRenderer.on('tuxmail:accion', h)
+    return () => {
+      ipcRenderer.removeListener('tuxmail:accion', h)
     }
   },
   alError: (fn: (texto: string) => void) => {

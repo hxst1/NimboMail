@@ -22,6 +22,7 @@ Conversaciones bien hiladas, imágenes protegidas contra el rastreo, traductor i
 - **Suscripciones**: todos los boletines que te escriben, con cuántos correos mandan y cuántos no lees, y **darse de baja** en un clic (la baja de un clic del RFC 8058 sin abrir ninguna web, o el correo de baja desde tu cuenta; su web solo si no ofrecen otra cosa). Después, sus correos a la papelera de una vez. También hay un botón «Darse de baja» junto al remitente de cada boletín.
 - **Vista rápida** de imágenes y PDF con la barra espaciadora.
 - **Deshacer** (`Ctrl+Z`) para archivar, borrar, mover y marcar.
+- **En la bandeja del sistema**: al cerrar la ventana TuxMail sigue en la bandeja (StatusNotifierItem, como Slack o Discord) para que lleguen el correo nuevo y los avisos; desde el icono se abre, se busca correo nuevo, se escribe uno o se sale. `--oculto` arranca solo en la bandeja (para iniciarlo con la sesión).
 - **Ajustes** (la rueda de abajo a la izquierda): color de resaltado, disposición, traducción, cuentas, calendarios y qué se ve en la barra lateral (favoritos y carpetas de cada cuenta; también con clic derecho → «Ocultar»).
 - **Colores de resaltado** a elegir y una estética oscura y sobria (paleta *Niebla*).
 
@@ -93,6 +94,7 @@ En una app de escritorio el client ID no es secreto: el inicio de sesión va pro
 | `Ctrl+Shift+T` | Traducir el correo / ver el original |
 | `Ctrl+F` | Buscar |
 | `Ctrl+Z` | Deshacer |
+| `Ctrl+W` · `Ctrl+Q` | Cerrar la ventana (sigue en la bandeja) · salir de TuxMail |
 | `←` / `→` · `T` · `N` | En el calendario: anterior / siguiente · hoy · nuevo evento |
 
 ## Dónde guarda las cosas

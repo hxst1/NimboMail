@@ -11,6 +11,7 @@ import {
   EyeSlash,
   Newspaper,
   Sun,
+  X,
   PaperPlaneTilt,
   Prohibit,
   SidebarSimple,
@@ -19,7 +20,7 @@ import {
   type Icon,
 } from '@phosphor-icons/react'
 import type { Buzon, Carpeta, RolCarpeta } from '@shared/tipos'
-import type { Correo } from '@/estado'
+import { api, type Correo } from '@/estado'
 import { useInterfaz } from '@/components/MenuContextual'
 import { claveCarpeta } from '@/components/Ajustes'
 
@@ -137,6 +138,10 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sb-cabecera">
+        <button className="boton-icono cerrar-ventana" title="Cerrar (TuxMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
+          <X size={16} weight="bold" />
+        </button>
+        <span className="sb-hueco" />
         <button className="boton-icono" title="Ocultar barra lateral" onClick={onOcultar}>
           <SidebarSimple size={18} />
         </button>

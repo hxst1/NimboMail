@@ -1,5 +1,6 @@
 import { enableCompileCache } from 'node:module'
-import { app, BrowserWindow, dialog, ipcMain, net, Notification, protocol, shell } from 'electron'
+import { existsSync, writeFileSync } from 'node:fs'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, Notification, protocol, shell, Tray } from 'electron'
 import type { Borrador } from '@shared/tipos'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -27,7 +28,25 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'tuxmail', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ])
 
+// Una sola TuxMail: si se vuelve a lanzar, se trae al frente la que ya está abierta.
+if (!captura && !app.requestSingleInstanceLock()) {
+  app.quit()
+  process.exit(0)
+}
+
 const servicio = new Servicio(app.getPath('userData'), demo)
+let saliendo = false // true al salir de verdad (Salir, Ctrl+Q): si no, cerrar la ventana la oculta
+let bandeja: Tray | null = null
+const ICONO = join(import.meta.dirname, '../../resources/tuxmail.png')
+
+const ventana = () => BrowserWindow.getAllWindows()[0] as BrowserWindow | undefined
+function mostrar() {
+  const w = ventana() ?? crearVentana()
+  if (w.isMinimized()) w.restore()
+  w.show()
+  w.focus()
+}
+app.on('second-instance', () => mostrar())
 const portapapeles = servicio.portapapeles
 
 // Métodos que la interfaz puede llamar. Nada más pasa por IPC.
@@ -96,6 +115,11 @@ const API = {
   crearCarpeta: (cuenta: string, nombre: string) => servicio.crearCarpeta(cuenta, nombre),
   renombrarCarpeta: (cuenta: string, ruta: string, nueva: string) => servicio.renombrarCarpeta(cuenta, ruta, nueva),
   borrarCarpeta: (cuenta: string, ruta: string) => servicio.borrarCarpeta(cuenta, ruta),
+  cerrarVentana: () => ventana()?.close(), // con bandeja, la oculta
+  salir: () => {
+    saliendo = true
+    app.quit()
+  },
   abrirEnlace: (url: string) => {
     if (typeof url === 'string' && /^(https?|mailto):/.test(url)) shell.openExternal(url)
   },
@@ -235,7 +259,15 @@ function crearVentana(): BrowserWindow {
       }, Number(process.env.CORREO_ESPERA ?? 1500))
     })
   } else {
-    win.once('ready-to-show', () => win.show())
+    // Con --oculto (arranque con la sesión) se queda solo en la bandeja.
+    win.once('ready-to-show', () => !process.argv.includes('--oculto') && win.show())
+    // Cerrar la ventana no cierra TuxMail: sigue en la bandeja para el correo nuevo y los avisos.
+    win.on('close', (e) => {
+      if (saliendo || !bandeja) return
+      e.preventDefault()
+      win.hide()
+      avisarBandeja()
+    })
   }
 
   // Nada de abrir enlaces dentro de la app: van al navegador.
@@ -302,11 +334,77 @@ app.whenReady().then(() => {
   })
 
   crearVentana()
+  if (!captura) crearBandeja()
   servicio.arrancar()
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) crearVentana()
-  })
+  app.on('activate', () => mostrar())
 })
 
-app.on('window-all-closed', () => app.quit())
-app.on('before-quit', () => servicio.parar())
+/** Icono en la bandeja del sistema (StatusNotifierItem: sale en la waybar como el de Slack o Vesktop). */
+function crearBandeja() {
+  try {
+    bandeja = new Tray(nativeImage.createFromPath(ICONO).resize({ width: 64, height: 64 }))
+  } catch (e) {
+    console.error('[bandeja] no se pudo crear:', (e as Error).message)
+    return
+  }
+  bandeja.setToolTip('TuxMail')
+  const accion = (a: string) => {
+    mostrar()
+    ventana()?.webContents.send('tuxmail:accion', a)
+  }
+  bandeja.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Abrir TuxMail', click: () => mostrar() },
+      { label: 'Obtener correo nuevo', click: () => servicio.sincronizar().catch(() => {}) },
+      { label: 'Mensaje nuevo', click: () => accion('redactar') },
+      { type: 'separator' },
+      {
+        label: 'Salir de TuxMail',
+        click: () => {
+          saliendo = true
+          app.quit()
+        },
+      },
+    ]),
+  )
+  // Clic: abre la ventana, o la oculta si ya está delante.
+  bandeja.on('click', () => {
+    const w = ventana()
+    if (w?.isVisible() && w.isFocused()) w.hide()
+    else mostrar()
+  })
+  actualizarBandeja()
+}
+
+// El número de no leídos, al pasar el ratón por el icono.
+let avisoBandeja: NodeJS.Timeout | null = null
+function actualizarBandeja() {
+  if (!bandeja || avisoBandeja) return
+  avisoBandeja = setTimeout(() => {
+    avisoBandeja = null
+    const n = servicio.contadores()['todas:inbox'] ?? 0
+    bandeja?.setToolTip(n ? `TuxMail · ${n} sin leer` : 'TuxMail')
+  }, 500)
+}
+servicio.on('cambios', actualizarBandeja)
+servicio.on('parche', actualizarBandeja)
+
+/** La primera vez que se cierra la ventana, se explica que TuxMail sigue en la bandeja. */
+function avisarBandeja() {
+  const marca = join(app.getPath('userData'), '.bandeja-avisada')
+  if (existsSync(marca) || !Notification.isSupported()) return
+  writeFileSync(marca, '')
+  new Notification({
+    title: 'TuxMail sigue en la bandeja',
+    body: 'Para que te lleguen el correo nuevo y los avisos. Para salir del todo: clic derecho en el icono → Salir, o Ctrl+Q.',
+    icon: ICONO,
+  }).show()
+}
+
+app.on('window-all-closed', () => {
+  if (!bandeja || saliendo) app.quit() // con bandeja, TuxMail sigue en marcha
+})
+app.on('before-quit', () => {
+  saliendo = true
+  servicio.parar()
+})

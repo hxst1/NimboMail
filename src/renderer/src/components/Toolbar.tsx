@@ -19,6 +19,7 @@ import {
   X,
   type Icon,
 } from '@phosphor-icons/react'
+import { api } from '@/estado'
 
 export type Disposicion = 'columnas' | 'ancha'
 
@@ -82,9 +83,14 @@ export function Toolbar(p: Props) {
   return (
     <header className="toolbar">
       {p.barraOculta && (
-        <button className="boton-icono" title="Mostrar barra lateral" onClick={p.onMostrarBarra}>
-          <SidebarSimple size={18} />
-        </button>
+        <>
+          <button className="boton-icono cerrar-ventana" title="Cerrar (TuxMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
+            <X size={16} weight="bold" />
+          </button>
+          <button className="boton-icono" title="Mostrar barra lateral" onClick={p.onMostrarBarra}>
+            <SidebarSimple size={18} />
+          </button>
+        </>
       )}
       <div className="tb-titulo">
         <div className="tb-nombre">{p.titulo}</div>

@@ -105,6 +105,14 @@ export function App() {
   }, [])
   const [irADia, setIrADia] = useState<number | null>(null) // al pulsar un aviso: el calendario en ese día
   const [editorEvento, setEditorEvento] = useState<{ existente?: Instancia; nuevo?: NuevoEvento } | null>(null)
+  // Acciones desde el icono de la bandeja.
+  useEffect(
+    () =>
+      window.niebla.alAccion((a) => {
+        if (a === 'redactar') setRedactando({ tipo: 'nuevo' })
+      }),
+    [],
+  )
   useEffect(
     () =>
       window.niebla.alIrADia((ms) => {
@@ -381,6 +389,8 @@ export function App() {
       if (enCampo) return
       if (e.ctrlKey && !e.shiftKey && k === 'z') return e.preventDefault(), api.deshacer()
       if (e.ctrlKey && e.shiftKey && k === 't') return e.preventDefault(), window.dispatchEvent(new Event('tuxmail:traducir'))
+      if (e.ctrlKey && !e.shiftKey && k === 'w') return e.preventDefault(), api.cerrarVentana()
+      if (e.ctrlKey && !e.shiftKey && k === 'q') return e.preventDefault(), api.salir()
       if (e.ctrlKey && !e.shiftKey && k === 'n') return e.preventDefault(), accion('redactar')
       if (k === 'f5') return e.preventDefault(), accion('actualizar')
       if (e.ctrlKey && !e.shiftKey && k === 'r') return e.preventDefault(), accion('responder')
