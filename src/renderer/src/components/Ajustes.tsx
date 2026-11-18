@@ -179,7 +179,7 @@ export function Ajustes(p: {
                   </div>
                 )
               })}
-              <button className="aj-boton principal" onClick={p.onAnadirCuenta}>
+              <button className="aj-boton destacado" onClick={p.onAnadirCuenta}>
                 Añadir cuenta
               </button>
               <p className="aj-nota">Quitar una cuenta borra de este equipo su configuración, su contraseña y su copia del correo. No toca nada del servidor.</p>

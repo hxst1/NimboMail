@@ -2242,7 +2242,7 @@ a.tb-boton {
   font-size: 12.5px;
   color: var(--texto-2);
 }
-.cs-botones button.principal {
+.cs-botones button.destacado {
   background: var(--acento);
   color: #141516;
   font-weight: 600;
@@ -2417,7 +2417,7 @@ a.tb-boton {
 .aj-boton:hover {
   background: rgba(255, 255, 255, 0.14);
 }
-.aj-boton.principal {
+.aj-boton.destacado {
   background: var(--acento);
   color: #141516;
   font-weight: 600;

@@ -128,7 +128,7 @@ function Suscribir({ onCerrar }: { onCerrar: () => void }) {
         <button type="button" onClick={onCerrar}>
           Cancelar
         </button>
-        <button type="submit" className="principal" disabled={!url.trim()}>
+        <button type="submit" className="destacado" disabled={!url.trim()}>
           Añadir
         </button>
       </div>
