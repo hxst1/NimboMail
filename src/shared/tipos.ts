@@ -1,0 +1,116 @@
+// Modelo compartido entre el proceso principal y la interfaz.
+
+export type RolCarpeta = 'inbox' | 'drafts' | 'sent' | 'junk' | 'trash' | 'archive' | 'all' | 'normal'
+
+export interface Cuenta {
+  id: string
+  nombre: string // cómo se muestra: «Gmail», «Trabajo»
+  direccion: string
+  remitente: string // nombre con el que firma: «Alex»
+  auth: 'clave' | 'microsoft' | 'google'
+}
+
+export interface Carpeta {
+  id: string // `${cuenta}:${ruta}`
+  cuenta: string
+  ruta: string
+  nombre: string
+  rol: RolCarpeta
+  noLeidos: number
+  total: number
+}
+
+export interface Direccion {
+  nombre: string
+  direccion: string
+}
+
+export interface Mensaje {
+  id: string // `${cuenta}:${carpeta}:${uid}`
+  cuenta: string
+  carpeta: string // id de carpeta
+  hilo: string
+  de: Direccion
+  para: Direccion[]
+  cc: Direccion[]
+  asunto: string
+  vistaPrevia: string
+  fecha: number // ms
+  leido: boolean
+  marcado: boolean
+  respondido: boolean
+  adjuntos: number
+  enHilo: number // mensajes del hilo (1 si va solo)
+}
+
+export interface Adjunto {
+  nombre: string
+  tipo: string
+  tamano: number
+  url: string // tuxmail://adjunto/… (servido desde la caché local)
+  inline: boolean // imagen incrustada en el HTML: no sale como adjunto, sí en el visor
+}
+
+export interface EstadoCuenta {
+  id: string
+  estado: 'conectando' | 'listo' | 'error' | 'sin-clave'
+  detalle?: string
+}
+
+export interface Datos {
+  cuentas: Cuenta[]
+  carpetas: Carpeta[]
+  estados: EstadoCuenta[]
+}
+
+export interface Cuerpo {
+  html: string | null
+  texto: string | null
+  adjuntos: Adjunto[]
+  remotoBloqueado: boolean
+  traduccion?: string | null // el correo ya traducido al español (HTML), si se tradujo antes
+}
+
+// Buzones que aparecen en la barra lateral: carpetas reales o vistas que juntan varias.
+export type Buzon =
+  | { tipo: 'carpeta'; carpeta: string }
+  | { tipo: 'todas'; rol: 'inbox' | 'drafts' | 'sent' }
+  | { tipo: 'marcados' }
+  | { tipo: 'hoy' }
+
+// ------------------------------------------------------------ redactar
+
+export interface AdjuntoBorrador {
+  nombre: string
+  tamano: number
+  tipo?: string
+  ruta?: string // archivo del disco (elegido con el clip, arrastrado o pegado desde el gestor de archivos)
+  url?: string // tuxmail://adjunto/… (reenviar)
+  datos?: Uint8Array // pegado como datos
+}
+
+export interface Borrador {
+  cuenta: string
+  para: Direccion[]
+  cc: Direccion[]
+  cco: Direccion[]
+  asunto: string
+  html: string
+  enRespuestaA?: string | null // Message-ID al que responde
+  referencias?: string[]
+  respondeA?: string | null // id del mensaje respondido, para marcarlo como respondido al enviar
+  borradorId?: string | null // borrador guardado en el servidor: se sustituye al guardar y se borra al enviar
+  adjuntos: AdjuntoBorrador[]
+}
+
+export interface DatosRespuesta {
+  cuenta: string
+  para: Direccion[]
+  cc: Direccion[]
+  asunto: string
+  enRespuestaA: string | null
+  referencias: string[]
+  respondeA: string
+  cabeceraCita: string // «El martes, 17 nov 2026, 13:39, Jake Nicol <…> escribió:»
+  adjuntos: Adjunto[] // los del original, para reenviar
+}
