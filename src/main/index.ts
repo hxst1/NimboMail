@@ -69,6 +69,7 @@ const API = {
   suscribirCalendario: (nombre: string, url: string) => servicio.calendario.suscribir(nombre, url),
   quitarCalendario: (id: string) => servicio.calendario.quitar(id),
   mostrarCalendario: (id: string, visible: boolean) => servicio.calendario.mostrar(id, visible),
+  colorCalendario: (id: string, color: string) => servicio.calendario.cambiarColor(id, color),
   actualizarCalendarios: () => servicio.calendario.actualizar(),
   elegirArchivos: async () => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]

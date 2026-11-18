@@ -22,6 +22,19 @@ const tocaDia = (e: Instancia, d: Date) => {
   return e.inicio < fin && (e.fin > ini || (e.fin === e.inicio && e.inicio >= ini))
 }
 
+/** De qué servicio es la reunión, por su enlace. */
+export function plataforma(enlace: string | null): { nombre: string; color: string } | null {
+  if (!enlace) return null
+  if (/meet\.google\.com/i.test(enlace)) return { nombre: 'Meet', color: '#55a868' }
+  if (/teams\.(microsoft|live)\.com/i.test(enlace)) return { nombre: 'Teams', color: '#a37ad6' }
+  if (/zoom\.us/i.test(enlace)) return { nombre: 'Zoom', color: '#4f8fe6' }
+  if (/webex\.com/i.test(enlace)) return { nombre: 'Webex', color: '#d9873f' }
+  return null
+}
+
+/** Color de un evento: el de su plataforma (Meet verde, Teams morado, Zoom azul…) o el de su calendario. */
+export const colorDe = (e: Instancia) => plataforma(e.enlace)?.color ?? e.color
+
 const RESPUESTAS: Record<string, string> = {
   'NEEDS-ACTION': 'Sin responder',
   ACCEPTED: 'Aceptada',
@@ -51,7 +64,7 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
     ? 'Todo el día'
     : `${hora(e.inicio)} – ${hora(e.fin)}`
   return (
-    <div className={`evento-tarjeta${cancelada ? ' cancelado' : ''}${compacta ? ' compacta' : ''}`} style={{ '--color-cal': e.color } as React.CSSProperties}>
+    <div className={`evento-tarjeta${cancelada ? ' cancelado' : ''}${compacta ? ' compacta' : ''}`} style={{ '--color-cal': colorDe(e) } as React.CSSProperties}>
       <div className="et-cabeza">
         <span className="et-hora">{compacta ? new Date(e.inicio).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' : ''}{cuando}</span>
         {cancelada ? <span className="et-chip rojo">Cancelada</span> : e.esInvitacion && e.miRespuesta && <span className={`et-chip ${e.miRespuesta}`}>{RESPUESTAS[e.miRespuesta] ?? e.miRespuesta}</span>}
@@ -76,7 +89,7 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
       <div className="et-acciones">
         {e.enlace && !cancelada && (
           <button className="et-unirse" onClick={() => api.abrirEnlace(e.enlace!)}>
-            <VideoCamera size={14} weight="fill" /> Unirse
+            <VideoCamera size={14} weight="fill" /> Unirse{plataforma(e.enlace) ? ` a ${plataforma(e.enlace)!.nombre}` : ''}
           </button>
         )}
         {puedeResponder &&
@@ -310,7 +323,7 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
                     <span
                       key={e.clave}
                       className={`cal-chip${e.todoElDia ? ' todo-dia' : ''}${e.estado === 'cancelado' ? ' cancelado' : ''}${e.miRespuesta === 'DECLINED' ? ' rechazado' : ''}${e.miRespuesta === 'NEEDS-ACTION' ? ' pendiente' : ''}`}
-                      style={{ '--color-cal': e.color } as React.CSSProperties}
+                      style={{ '--color-cal': colorDe(e) } as React.CSSProperties}
                       title={`${e.todoElDia ? '' : hora(e.inicio) + ' '}${e.titulo}`}
                     >
                       {!e.todoElDia && <b>{hora(e.inicio)}</b>} {e.titulo}
@@ -336,7 +349,7 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
                   {eventos
                     .filter((e) => e.todoElDia && tocaDia(e, d))
                     .map((e) => (
-                      <span key={e.clave} className="cal-chip todo-dia" style={{ '--color-cal': e.color } as React.CSSProperties}>
+                      <span key={e.clave} className="cal-chip todo-dia" style={{ '--color-cal': colorDe(e) } as React.CSSProperties}>
                         {e.titulo}
                       </span>
                     ))}
@@ -377,7 +390,7 @@ export function Calendario({ onCerrar, onAbrirCorreo }: { onCerrar: () => void; 
                           key={e.clave}
                           className={`cs-evento${alto < 36 ? ' corto' : ''}${e.estado === 'cancelado' ? ' cancelado' : ''}${e.miRespuesta === 'NEEDS-ACTION' ? ' pendiente' : ''}${e.miRespuesta === 'DECLINED' ? ' rechazado' : ''}`}
                           style={{
-                            '--color-cal': e.color,
+                            '--color-cal': colorDe(e),
                             top: ((ini - d.getTime()) / 3_600_000) * HORA_PX,
                             height: alto,
                             left: `calc(${c * ancho}% + 2px)`,

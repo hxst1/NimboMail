@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { CalendarBlank, Columns, GearSix, Info, Key, Rows, SidebarSimple, Trash, UserCircle, X } from '@phosphor-icons/react'
 import type { CalendarioInfo, Carpeta, Cuenta, Datos } from '@shared/tipos'
 import { api } from '@/estado'
-import { SelectorAcento, type AcentoId } from '@/components/Acento'
+import { ACENTOS, SelectorAcento, type AcentoId } from '@/components/Acento'
 import type { Disposicion } from '@/components/Toolbar'
 
 type Seccion = 'general' | 'barra' | 'cuentas' | 'calendario' | 'acerca'
@@ -200,6 +200,17 @@ export function Ajustes(p: {
                       {c.error ? ` · error: ${c.error}` : c.actualizado ? ` · actualizado ${new Date(c.actualizado).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
                     </span>
                   </div>
+                  <div className="aj-colores" title="Color del calendario">
+                    {[...new Set(['#c8ccd0', '#8b98a6', ...ACENTOS.map((a) => a.color)])].map((col) => (
+                      <button
+                        key={col}
+                        className={c.color.toLowerCase() === col.toLowerCase() ? 'elegido' : ''}
+                        style={{ background: col }}
+                        aria-label={`Color ${col}`}
+                        onClick={() => api.colorCalendario(c.id, col).then(() => api.calendarios().then(setCalendarios))}
+                      />
+                    ))}
+                  </div>
                   <Interruptor etiqueta="" activo={c.visible} onCambiar={(v) => api.mostrarCalendario(c.id, v).then(() => api.calendarios().then(setCalendarios))} />
                   {c.tipo === 'ical' && (
                     <button className="aj-boton" title="Quitar la suscripción" onClick={() => api.quitarCalendario(c.id)}>
@@ -208,6 +219,10 @@ export function Ajustes(p: {
                   )}
                 </div>
               ))}
+              <p className="aj-nota">
+                Las reuniones se colorean según su plataforma: Google Meet en verde, Teams en morado, Zoom en azul y Webex en naranja. El
+                resto toma el color de su calendario.
+              </p>
               <p className="aj-nota">
                 Para suscribirte a otro calendario, pulsa «+» en la vista Calendario. Las reuniones se exportan a ~/.local/share/tuxmail/calendario.ics para otros calendarios del escritorio.
               </p>

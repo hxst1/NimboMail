@@ -115,8 +115,9 @@ export class Calendario extends EventEmitter {
     ).map((c) => ({ ...c, visible: !!c.visible }))
   }
 
-  private colorLibre(): string {
+  private colorLibre(tipo?: 'ical'): string {
     const usados = new Set(this.calendarios().map((c) => c.color))
+    if (tipo === 'ical' && !usados.has('#d9558f')) return '#d9558f' // los suscritos (festivos…) en rosa
     return COLORES.find((c) => !usados.has(c)) ?? COLORES[this.calendarios().length % COLORES.length]
   }
 
@@ -319,7 +320,7 @@ export class Calendario extends EventEmitter {
   /** Un calendario de ejemplo ya descargado (modo demo). */
   sembrarFeed(nombre: string, ics: string) {
     const id = `ical-${nombre.toLowerCase()}`
-    this.db.sql.prepare("INSERT OR IGNORE INTO calendarios (id, nombre, tipo, color) VALUES (?, ?, 'ical', ?)").run(id, nombre, this.colorLibre())
+    this.db.sql.prepare("INSERT OR IGNORE INTO calendarios (id, nombre, tipo, color) VALUES (?, ?, 'ical', ?)").run(id, nombre, this.colorLibre('ical'))
     this.guardarFeed(id, ics)
   }
 
@@ -329,7 +330,7 @@ export class Calendario extends EventEmitter {
     const id = `ical-${randomBytes(4).toString('hex')}`
     this.db.sql
       .prepare("INSERT INTO calendarios (id, nombre, tipo, color) VALUES (?, ?, 'ical', ?)")
-      .run(id, nombre.trim() || 'Calendario', this.colorLibre())
+      .run(id, nombre.trim() || 'Calendario', this.colorLibre('ical'))
     await guardarSecreto(claveSecreto(id), url.trim())
     this.guardarFeed(id, ics)
     this.cambiado()
@@ -355,6 +356,12 @@ export class Calendario extends EventEmitter {
     this.db.sql.prepare('DELETE FROM calendarios WHERE id = ?').run(id)
     if (c.tipo === 'ical') await borrarSecreto(claveSecreto(id))
     this.cambiado()
+  }
+
+  cambiarColor(id: string, color: string) {
+    if (!/^#[0-9a-f]{6}$/i.test(color)) return
+    this.db.sql.prepare('UPDATE calendarios SET color = ? WHERE id = ?').run(color, id)
+    this.emit('cambios')
   }
 
   mostrar(id: string, visible: boolean) {
