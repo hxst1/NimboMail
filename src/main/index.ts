@@ -61,6 +61,15 @@ const API = {
   quitarCuenta: (id: string) => servicio.quitarCuenta(id),
   cambiarClave: (id: string, clave: string) => servicio.cambiarClave(id, clave),
   volverAEntrar: (id: string) => servicio.volverAEntrar(id),
+  sincronizar: () => servicio.sincronizar(),
+  calendarios: () => servicio.calendario.calendarios(),
+  eventos: (desde: number, hasta: number) => servicio.calendario.instancias(desde, hasta),
+  invitacionDe: (mensaje: string) => servicio.calendario.invitacionDe(mensaje),
+  responderInvitacion: (id: string, partstat: 'ACCEPTED' | 'TENTATIVE' | 'DECLINED') => servicio.responderInvitacion(id, partstat),
+  suscribirCalendario: (nombre: string, url: string) => servicio.calendario.suscribir(nombre, url),
+  quitarCalendario: (id: string) => servicio.calendario.quitar(id),
+  mostrarCalendario: (id: string, visible: boolean) => servicio.calendario.mostrar(id, visible),
+  actualizarCalendarios: () => servicio.calendario.actualizar(),
   elegirArchivos: async () => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
     const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], title: 'Adjuntar archivos' })
@@ -246,6 +255,7 @@ const aTodas = (canal: string, ...args: unknown[]) =>
   BrowserWindow.getAllWindows().forEach((w) => w.webContents.send(canal, ...args))
 servicio.on('cambios', () => aTodas('tuxmail:cambios'))
 servicio.on('parche', (p: unknown) => aTodas('tuxmail:parche', p))
+servicio.on('calendario', () => aTodas('tuxmail:calendario'))
 servicio.on('error', (texto: string) => aTodas('tuxmail:error', texto))
 
 app.whenReady().then(() => {

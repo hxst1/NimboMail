@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import {
   Plus,
+  CalendarBlank,
   Archive,
   CaretRight,
   File,
@@ -39,9 +40,11 @@ interface Props {
   onAnadirCuenta: () => void
   onMenuCuenta: (id: string, x: number, y: number) => void
   onArreglarCuenta: (id: string) => void // «Falta la contraseña» / sin conexión
+  calendarioActivo: boolean
+  onCalendario: () => void
 }
 
-export function Sidebar({ correo, onOcultar, onAnadirCuenta, onMenuCuenta, onArreglarCuenta }: Props) {
+export function Sidebar({ correo, onOcultar, onAnadirCuenta, onMenuCuenta, onArreglarCuenta, calendarioActivo, onCalendario }: Props) {
   const { datos, buzon, elegirBuzon, contar } = correo
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({ todas: true })
 
@@ -53,7 +56,7 @@ export function Sidebar({ correo, onOcultar, onAnadirCuenta, onMenuCuenta, onArr
     nivel?: number
     desplegable?: string
   }) {
-    const activo = mismoBuzon(buzon, p.buzon)
+    const activo = !calendarioActivo && mismoBuzon(buzon, p.buzon)
     const Ico = p.icono
     return (
       <div
@@ -134,6 +137,13 @@ export function Sidebar({ correo, onOcultar, onAnadirCuenta, onMenuCuenta, onArr
           />
           <Item buzon={{ tipo: 'todas', rol: 'drafts' }} icono={File} texto="Todos los borradores" />
           <Item buzon={{ tipo: 'todas', rol: 'sent' }} icono={PaperPlaneTilt} texto="Todos los enviados" />
+          <div className={`sb-item${calendarioActivo ? ' activo' : ''}`} style={{ paddingLeft: 10 }} onClick={onCalendario}>
+            <span className="sb-caret vacio">
+              <CaretRight size={10} weight="bold" />
+            </span>
+            <CalendarBlank className="sb-icono" size={18} weight="regular" />
+            <span className="sb-texto">Calendario</span>
+          </div>
         </Seccion>
 
         <Seccion titulo="Buzones inteligentes">

@@ -72,6 +72,29 @@ export class Smtp {
     return info.message as Buffer
   }
 
+  /** Respuesta a una invitación (iMIP): text/calendar con METHOD:REPLY, que el calendario del organizador entiende. */
+  async enviarIcal(c: ConfigCuenta, d: { para: { nombre: string; direccion: string }; asunto: string; texto: string; ical: string }) {
+    const t = nodemailer.createTransport({
+      host: c.smtp,
+      port: c.smtpPuerto,
+      secure: c.smtpPuerto === 465,
+      requireTLS: c.smtpPuerto !== 465,
+      auth: await credencialesSmtp(c),
+      tls: opcionesTls(c),
+    })
+    try {
+      await t.sendMail({
+        from: { name: c.nombre, address: c.direccion },
+        to: direccion(d.para),
+        subject: d.asunto,
+        text: d.texto,
+        icalEvent: { method: 'REPLY', content: d.ical },
+      })
+    } finally {
+      t.close()
+    }
+  }
+
   /** Envía por SMTP (sin la cabecera Bcc, como debe ser). */
   async enviar(c: ConfigCuenta, b: Borrador, ids: { messageId: string; date: Date }) {
     const t = nodemailer.createTransport({

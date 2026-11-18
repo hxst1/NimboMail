@@ -12,6 +12,7 @@ import { Reader, TRADUCIR_SIEMPRE, type ElementoVista } from '@/components/Reade
 import { VistaRapida } from '@/components/VistaRapida'
 import { Redactar } from '@/components/Redactar'
 import { NuevaCuenta } from '@/components/NuevaCuenta'
+import { Calendario } from '@/components/Calendario'
 import { SelectorAcento, useAcento } from '@/components/Acento'
 import { miles } from '@/formato'
 import {
@@ -75,10 +76,26 @@ export function App() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuAbierto | null>(null)
   const [redactando, setRedactando] = useState<OpcionesRedactar | null>(null)
+  const [enCalendario, setEnCalendario] = useState(false)
+  // Elegir un buzón en la barra lateral vuelve al correo.
+  useEffect(() => setEnCalendario(false), [correo.buzon])
   const [alta, setAlta] = useState<{ cuenta?: string } | null>(null) // añadir cuenta o poner su contraseña
   const [burbuja, setBurbuja] = useState<{ x: number; y: number; texto: string } | null>(null)
   const cerrarMenu = useCallback(() => setMenu(null), [])
   const cerrarBurbuja = useCallback(() => setBurbuja(null), [])
+  const [actualizando, setActualizando] = useState(false)
+  const actualizar = useCallback(async () => {
+    if (actualizando) return
+    setActualizando(true)
+    try {
+      await api.sincronizar()
+    } catch (e) {
+      avisar(`No se pudo actualizar: ${(e as Error).message}`)
+    } finally {
+      setActualizando(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actualizando])
   const [siempreTraducir, setSiempreTraducir] = useState(() => leerPreferencia<string>(TRADUCIR_SIEMPRE, '0') === '1')
 
   const lista = useMemo(
@@ -177,6 +194,18 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [avisar, redactar],
   )
+
+  // «Ver correo» desde un evento del calendario: abre su carpeta y la conversación.
+  const abrirCorreo = async (id: string) => {
+    const [cuenta, ruta] = id.split('\u0000')
+    const carpeta = `${cuenta}\u0000${ruta}`
+    const h = await api.hilo(id).catch(() => [] as Mensaje[])
+    // La fila de la lista es el mensaje más reciente del hilo en esa carpeta.
+    const fila = h.filter((m) => m.carpeta === carpeta).sort((a, b) => b.fecha - a.fecha)[0]
+    correo.elegirBuzon({ tipo: 'carpeta', carpeta })
+    correo.setSeleccion(fila?.id ?? id)
+    setEnCalendario(false)
+  }
 
   // Menú de una cuenta (clic derecho en su nombre en la barra lateral).
   const menuCuenta = (id: string, x: number, y: number) => {
@@ -285,6 +314,8 @@ export function App() {
       case 'marcar':
         if (actual) api.marcar([actual.id], { marcado: !actual.marcado })
         return
+      case 'actualizar':
+        return actualizar()
       case 'redactar':
         return redactar({ tipo: 'nuevo', cuenta: actual?.cuenta })
       case 'responder':
@@ -300,7 +331,7 @@ export function App() {
   // Atajos de teclado de Mail (Cmd → Ctrl).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (vista || redactando || alta) return // la vista rápida y la ventana de redactar tienen sus propias teclas
+      if (vista || redactando || alta || enCalendario) return // el calendario tiene sus propias teclas // la vista rápida y la ventana de redactar tienen sus propias teclas
       const enCampo = (e.target as HTMLElement | null)?.closest?.('input, textarea, [contenteditable]')
       const k = e.key.toLowerCase()
       if (e.ctrlKey && !e.shiftKey && k === 'f') return e.preventDefault(), setFocoBusqueda(Date.now())
@@ -308,6 +339,7 @@ export function App() {
       if (e.ctrlKey && !e.shiftKey && k === 'z') return e.preventDefault(), api.deshacer()
       if (e.ctrlKey && e.shiftKey && k === 't') return e.preventDefault(), window.dispatchEvent(new Event('tuxmail:traducir'))
       if (e.ctrlKey && !e.shiftKey && k === 'n') return e.preventDefault(), accion('redactar')
+      if (k === 'f5') return e.preventDefault(), accion('actualizar')
       if (e.ctrlKey && !e.shiftKey && k === 'r') return e.preventDefault(), accion('responder')
       if (e.ctrlKey && e.shiftKey && k === 'r') return e.preventDefault(), accion('responderTodos')
       if (e.ctrlKey && e.shiftKey && k === 'f') return e.preventDefault(), accion('reenviar')
@@ -358,6 +390,8 @@ export function App() {
           }}
           onAnadirCuenta={() => setAlta({})}
           onMenuCuenta={menuCuenta}
+          calendarioActivo={enCalendario}
+          onCalendario={() => setEnCalendario(true)}
           onArreglarCuenta={(id) => {
             const c = datos.cuentas.find((x) => x.id === id)
             if (c?.auth === 'clave') setAlta({ cuenta: id })
@@ -366,6 +400,10 @@ export function App() {
         />
       )}
       <main className="principal">
+        {enCalendario ? (
+          <Calendario onCerrar={() => setEnCalendario(false)} onAbrirCorreo={abrirCorreo} />
+        ) : (
+          <>
         <Toolbar
           titulo={titulo}
           subtitulo={subtitulo}
@@ -374,6 +412,7 @@ export function App() {
           filtroNoLeidos={soloNoLeidos}
           disposicion={disposicion}
           barraOculta={barraOculta}
+          actualizando={actualizando}
           busqueda={correo.busqueda}
           enfocarBusqueda={focoBusqueda}
           onBuscar={correo.setBusqueda}
@@ -442,6 +481,8 @@ export function App() {
             />
           )}
         </div>
+          </>
+        )}
         {aviso && <div className="aviso-flotante">{aviso}</div>}
       </main>
       {vista && <VistaRapida elementos={vista.elementos} indice={vista.indice} onCerrar={() => setVista(null)} />}

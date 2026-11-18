@@ -7,6 +7,8 @@ Conversaciones bien hiladas, imágenes protegidas contra el rastreo, traductor i
 
 ![TuxMail](docs/capturas/principal.png)
 
+![Calendario](docs/capturas/calendario.png)
+
 ## Qué tiene
 
 - **Conversaciones**: una fila por hilo, con tus respuestas dentro y el texto citado plegado en un «···».
@@ -15,6 +17,7 @@ Conversaciones bien hiladas, imágenes protegidas contra el rastreo, traductor i
 - **Traductor inglés → español local**: con el motor de Firefox Translations (Bergamot). El texto de tus correos no sale de tu equipo. Atajo `Ctrl+Shift+T`, y una opción para traducir siempre.
 - **Menú de clic derecho**: responder citando lo seleccionado, traducir una selección, copiar imágenes y adjuntos como archivos (se pegan en el gestor de archivos, en un chat o en otro correo), nuevo correo a una persona…
 - **Redactar**: responder y reenviar con la cita bien formateada y el hilo intacto (`In-Reply-To`/`References`), pegar o arrastrar archivos e imágenes, y borradores que se guardan solos.
+- **Calendario**: las invitaciones que llegan por correo (Google Meet, Teams, Zoom…) se convierten en eventos con **Unirse** y **Aceptar / Quizá / Rechazar**, que responde al organizador como cualquier calendario. Se actualizan solas si cambian o se cancelan. Puedes suscribirte también a calendarios por enlace iCal (festivos, la dirección secreta de Google Calendar…). Vista mes y semana, sin necesidad de entrar con Google ni Microsoft.
 - **Vista rápida** de imágenes y PDF con la barra espaciadora.
 - **Deshacer** (`Ctrl+Z`) para archivar, borrar, mover y marcar.
 - **Colores de resaltado** a elegir y una estética oscura y sobria (paleta *Niebla*).
@@ -74,6 +77,7 @@ En una app de escritorio el client ID no es secreto: el inicio de sesión va pro
 
 | Atajo | Acción |
 |---|---|
+| `F5` | Obtener correo nuevo |
 | `Ctrl+N` | Correo nuevo |
 | `Ctrl+R` / `Ctrl+Shift+R` | Responder / responder a todos |
 | `Ctrl+Shift+F` | Reenviar |
@@ -86,6 +90,7 @@ En una app de escritorio el client ID no es secreto: el inicio de sesión va pro
 | `Ctrl+Shift+T` | Traducir el correo / ver el original |
 | `Ctrl+F` | Buscar |
 | `Ctrl+Z` | Deshacer |
+| `←` / `→` · `T` | En el calendario: anterior / siguiente · hoy |
 
 ## Dónde guarda las cosas
 
@@ -96,6 +101,7 @@ En una app de escritorio el client ID no es secreto: el inicio de sesión va pro
 | Copia local del correo | `~/.config/tuxmail/tuxmail.db` (SQLite) |
 | Adjuntos e imágenes | `~/.cache/tuxmail/` |
 | Modelo del traductor | `~/.local/share/tuxmail/traduccion/` (se descarga de Mozilla la primera vez) |
+| Reuniones exportadas | `~/.local/share/tuxmail/calendario.ics`, para que otros calendarios del escritorio las enseñen |
 
 Quitar una cuenta en TuxMail borra su configuración, su contraseña y su copia local, pero no toca nada del servidor.
 

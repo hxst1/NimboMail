@@ -14,7 +14,9 @@ import { iniciarSesion, oauthDisponible, type IdOAuth } from './oauth'
 import { Db, idMensaje } from './db'
 import { Motor, type EventoMotor } from './motor'
 import { Remotas } from './remoto'
-import { ponerDescargador } from './adjuntos'
+import { leerAdjunto, ponerDescargador } from './adjuntos'
+import { Calendario } from './calendario'
+import { respuesta as respuestaIcs } from './ics'
 import { Portapapeles } from './portapapeles'
 import { Smtp } from './smtp'
 import * as demo from './demo'
@@ -35,6 +37,7 @@ export class Servicio extends EventEmitter {
   private db: Db
   readonly remotas: Remotas
   readonly portapapeles: Portapapeles
+  readonly calendario: Calendario
   private smtp: Smtp
   private cuentas: ConfigCuenta[] = []
   private motores = new Map<string, Motor>()
@@ -53,7 +56,12 @@ export class Servicio extends EventEmitter {
     this.remotas = new Remotas(this.db)
     this.portapapeles = new Portapapeles(this.remotas)
     this.smtp = new Smtp(this.portapapeles)
-    if (demo) demo_sembrar(this.db)
+    this.calendario = new Calendario(this.db, demo ? null : join(homedir(), '.local', 'share', 'tuxmail'))
+    this.calendario.on('cambios', () => this.emit('calendario'))
+    if (demo) {
+      demo_sembrar(this.db)
+      demo_calendario(this.calendario)
+    }
     // Adjuntos de correos grandes que aún no están en disco: los baja el motor de su cuenta.
     ponerDescargador((id, parte) => {
       const m = this.motores.get(id.split('\u0000')[0])
@@ -66,6 +74,19 @@ export class Servicio extends EventEmitter {
     if (this.demo) return
     this.cuentas = leerCuentas()
     for (const c of this.cuentas) this.arrancarMotor(c)
+    this.calendario.arrancar()
+    setTimeout(() => this.invitacionesGuardadas().catch(() => {}), 3000)
+  }
+
+  /** Invitaciones de correos que ya estaban en la caché (descargados antes de tener calendario). */
+  private async invitacionesGuardadas() {
+    for (const f of this.db.cuerposConCalendario()) {
+      for (const a of JSON.parse(f.adjuntos) as { nombre: string; tipo: string; url: string }[]) {
+        if (!/text\/calendar|application\/ics/i.test(a.tipo) && !/\.ics$/i.test(a.nombre)) continue
+        const r = await leerAdjunto(a.url).catch(() => null)
+        if (r) this.alEvento(f.cuenta, { tipo: 'invitacion', id: f.id, ics: r.datos.toString('utf8') })
+      }
+    }
   }
 
   private arrancarMotor(c: ConfigCuenta) {
@@ -74,6 +95,20 @@ export class Servicio extends EventEmitter {
     m.on('evento', (e: EventoMotor) => this.alEvento(c.id, e))
     this.motores.set(c.id, m)
     m.arrancar().catch(() => {})
+  }
+
+  /** «Obtener correo nuevo»: repasa todas las carpetas ya (y reconecta las cuentas caídas). */
+  async sincronizar() {
+    if (this.demo) return new Promise((r) => setTimeout(r, 600))
+    await Promise.all(
+      this.cuentas.map(async (c) => {
+        const estado = this.estados.get(c.id)?.estado
+        if (estado === 'error' || estado === 'sin-clave') return this.arrancarMotor(c)
+        await this.motores.get(c.id)?.sincronizarTodo()
+        this.motores.get(c.id)?.precargar()
+      }),
+    )
+    this.cambios()
   }
 
   // ------------------------------------------------------------ alta y baja de cuentas
@@ -144,6 +179,7 @@ export class Servicio extends EventEmitter {
     escribirCuentas(this.cuentas)
     await borrarSecreto(c.direccion)
     this.db.borrarCuenta(id)
+    this.calendario.borrarCuenta(id)
     this.cambios()
   }
 
@@ -168,11 +204,18 @@ export class Servicio extends EventEmitter {
 
   parar() {
     this.motores.forEach((m) => m.parar())
+    this.calendario.parar()
     this.db.cerrar()
   }
 
   private alEvento(cuenta: string, e: EventoMotor) {
     if (e.tipo === 'cambios') return this.cambios()
+    if (e.tipo === 'invitacion') {
+      const m = this.db.mensaje(e.id)
+      const c = this.cuentas.find((x) => x.id === cuenta)
+      if (m && c) this.calendario.procesarInvitacion(cuenta, c.etiqueta, e.id, m.fecha, e.ics, c.direccion.toLowerCase())
+      return
+    }
     if (e.tipo === 'nuevos') return this.emit('nuevos', e.ids.map((id) => this.db.mensaje(id)).filter(Boolean))
     if (e.tipo === 'estado') {
       const sinClave = e.detalle?.includes('Falta la contraseña')
@@ -395,6 +438,26 @@ export class Servicio extends EventEmitter {
     return out
   }
 
+  // ------------------------------------------------------------ calendario
+
+  /** Aceptar, quizá o rechazar: responde al organizador (iMIP) y lo apunta. */
+  async responderInvitacion(id: string, partstat: 'ACCEPTED' | 'TENTATIVE' | 'DECLINED') {
+    const e = this.calendario.evento(id)
+    if (!e) throw new Error('Invitación no encontrada')
+    if (!this.demo && e.ev.organizador?.direccion && e.cuenta) {
+      const c = this.config(e.cuenta)
+      const quien = c.nombre || c.direccion
+      const verbo = { ACCEPTED: ['Aceptado', 'ha aceptado'], TENTATIVE: ['Quizá', 'quizá asista a'], DECLINED: ['Rechazado', 'ha rechazado'] }[partstat]
+      await this.smtp.enviarIcal(c, {
+        para: { nombre: e.ev.organizador.nombre, direccion: e.ev.organizador.direccion },
+        asunto: `${verbo[0]}: ${e.ev.titulo}`,
+        texto: `${quien} ${verbo[1]} la invitación «${e.ev.titulo}».`,
+        ical: respuestaIcs(e.ev, { nombre: c.nombre, direccion: c.direccion }, partstat),
+      })
+    }
+    this.calendario.guardarRespuesta(id, partstat)
+  }
+
   guardarTraduccion(id: string, html: string) {
     this.db.guardarTraduccion(id, html)
   }
@@ -527,3 +590,4 @@ export class Servicio extends EventEmitter {
 }
 
 const demo_sembrar = (db: Db) => demo.sembrar(db)
+const demo_calendario = (c: Calendario) => demo.sembrarCalendario(c)

@@ -499,6 +499,17 @@ export class Db {
     this.sql.prepare('UPDATE remotos SET estado = ?, tipo = ? WHERE suma = ?').run(estado, tipo, suma)
   }
 
+  /** Cuerpos guardados con una invitación adjunta que aún no se ha leído para el calendario. */
+  cuerposConCalendario() {
+    return this.sql
+      .prepare(
+        `SELECT c.id, c.adjuntos, m.cuenta FROM cuerpos c JOIN mensajes m ON m.id = c.id
+         WHERE (c.adjuntos LIKE '%calendar%' OR c.adjuntos LIKE '%.ics%')
+           AND c.id NOT IN (SELECT mensaje FROM invitaciones_correo)`,
+      )
+      .all() as { id: string; adjuntos: string; cuenta: string }[]
+  }
+
   /** Borra de la caché todo lo de una cuenta (al quitarla de TuxMail). */
   borrarCuenta(cuenta: string) {
     this.transaccion(() => {

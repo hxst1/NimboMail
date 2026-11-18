@@ -49,6 +49,7 @@ export type EventoMotor =
   | { tipo: 'cambios' }
   | { tipo: 'estado'; estado: 'conectando' | 'listo' | 'error'; detalle?: string }
   | { tipo: 'nuevos'; ids: string[] } // mensajes nuevos en INBOX (para avisos y reglas)
+  | { tipo: 'invitacion'; id: string; ics: string } // un correo con una invitación de calendario (iMIP)
 
 type Prioridad = 'alta' | 'baja'
 
@@ -477,6 +478,12 @@ export class Motor extends EventEmitter {
 
   private async cuerpoDeFuente(id: string, fuente: Buffer): Promise<Cuerpo> {
     const parsed = await simpleParser(fuente)
+    // Invitaciones de calendario (Meet, Teams, Zoom…): van en una parte text/calendar.
+    for (const a of parsed.attachments) {
+      if (/text\/calendar|application\/ics/i.test(a.contentType) || /\.ics$/i.test(a.filename ?? '')) {
+        this.emitir({ tipo: 'invitacion', id, ics: a.content.toString('utf8') })
+      }
+    }
     return {
       html: typeof parsed.html === 'string' ? parsed.html : null,
       texto: parsed.text ?? null,

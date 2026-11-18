@@ -12,6 +12,8 @@ const METODOS: (keyof ApiPrincipal)[] = [
   'copiarTexto', 'copiarImagen', 'copiarArchivo', 'guardarComo', 'abrirArchivo', 'buscarWeb', 'remitenteASpam',
   'prepararRespuesta', 'enviar', 'guardarBorrador', 'descartarBorrador', 'abrirBorrador', 'archivosDeUris', 'elegirArchivos',
   'detectarCuenta', 'oauthDisponibles', 'entrarConOAuth', 'probarCuenta', 'anadirCuenta', 'quitarCuenta', 'cambiarClave', 'volverAEntrar',
+  'calendarios', 'eventos', 'invitacionDe', 'responderInvitacion', 'suscribirCalendario', 'quitarCalendario', 'mostrarCalendario',
+  'actualizarCalendarios', 'sincronizar',
   'crearCarpeta', 'renombrarCarpeta', 'borrarCarpeta', 'abrirEnlace',
 ]
 const llamar = Object.fromEntries(
@@ -41,6 +43,13 @@ const api = {
     ipcRenderer.on('tuxmail:parche', h)
     return () => {
       ipcRenderer.removeListener('tuxmail:parche', h)
+    }
+  },
+  alCalendario: (fn: () => void) => {
+    const h = () => fn()
+    ipcRenderer.on('tuxmail:calendario', h)
+    return () => {
+      ipcRenderer.removeListener('tuxmail:calendario', h)
     }
   },
   alError: (fn: (texto: string) => void) => {

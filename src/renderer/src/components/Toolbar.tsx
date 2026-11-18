@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ArrowClockwise,
   Archive,
   ArrowBendDoubleUpLeft,
   ArrowBendUpLeft,
@@ -30,6 +31,7 @@ interface Props {
   filtroNoLeidos: boolean
   disposicion: Disposicion
   barraOculta: boolean
+  actualizando: boolean
   busqueda: string
   enfocarBusqueda: number // cambia para pedir el foco (Ctrl+F)
   onBuscar: (t: string) => void
@@ -50,6 +52,7 @@ export type AccionBarra =
   | 'marcar'
   | 'disposicion'
   | 'mas'
+  | 'actualizar'
 
 function Boton(p: { icono: Icon; titulo: string; onClick: () => void; activo?: boolean; disabled?: boolean; peso?: 'regular' | 'fill'; clase?: string; caret?: boolean }) {
   const Ico = p.icono
@@ -102,6 +105,12 @@ export function Toolbar(p: Props) {
         </div>
 
         <div className="capsula">
+          <Boton
+            icono={ArrowClockwise}
+            titulo={p.actualizando ? 'Buscando correo nuevo…' : 'Obtener correo nuevo (F5)'}
+            clase={p.actualizando ? 'girando' : undefined}
+            onClick={() => p.onAccion('actualizar')}
+          />
           <Boton icono={NotePencil} titulo="Redactar (Ctrl+N)" onClick={() => p.onAccion('redactar')} />
         </div>
 

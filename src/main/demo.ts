@@ -1,6 +1,7 @@
 // Correos inventados para `pnpm demo`: sirven para diseñar y capturar sin datos reales.
 import type { Carpeta, Cuenta, Cuerpo, Mensaje } from '@shared/tipos'
 import type { Db, NuevoMensaje } from './db'
+import type { Calendario } from './calendario'
 
 export const cuentas: Cuenta[] = [
   { id: 'personal', nombre: 'Personal', direccion: 'alex@ejemplo.com', remitente: 'Alex', auth: 'clave' },
@@ -198,4 +199,44 @@ export function sembrar(db: Db) {
 
 export function cuerpoDemo(m: Mensaje): Cuerpo {
   return cuerpoDe(m)
+}
+
+// ------------------------------------------------------------ calendario de ejemplo
+
+const ics = (d: Date) =>
+  `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}00`
+const diaIcs = (d: Date) => ics(d).slice(0, 8)
+const en = (dias: number, h: number, m = 0) => {
+  const d = new Date()
+  d.setDate(d.getDate() + dias)
+  d.setHours(h, m, 0, 0)
+  return d
+}
+
+function invitacion(uid: string, titulo: string, ini: Date, min: number, org: [string, string], extra: string[] = []) {
+  const fin = new Date(ini.getTime() + min * 60000)
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'METHOD:REQUEST', 'BEGIN:VEVENT', `UID:${uid}`,
+    `DTSTART:${ics(ini)}`, `DTEND:${ics(fin)}`, `SUMMARY:${titulo}`, `ORGANIZER;CN=${org[0]}:mailto:${org[1]}`,
+    'ATTENDEE;PARTSTAT=NEEDS-ACTION;CN=Alex Martín:mailto:alex@estudio-ejemplo.es', 'SEQUENCE:0', ...extra, 'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n')
+}
+
+export function sembrarCalendario(c: Calendario) {
+  const yo = 'alex@estudio-ejemplo.es'
+  const casos: [string, string][] = [
+    ['demo-1', invitacion('demo-1', 'Revisión de la nueva home', en(0, 16, 0), 45, ['Lucía Ferrer', 'lucia@estudioalba.es'], ['X-GOOGLE-CONFERENCE:https://meet.google.com/abc-defg-hij'])],
+    ['demo-2', invitacion('demo-2', 'Llamada de staging', en(1, 10, 0), 30, ['Marcos Ibáñez', 'marcos@nortedigital.com'], ['DESCRIPTION:Unirse: https://teams.microsoft.com/l/meetup-join/ejemplo'])],
+    ['demo-3', invitacion('demo-3', 'Daily del equipo', en(-7, 9, 30), 15, ['Andrea Soler', 'andrea@nortedigital.com'], ['RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', 'X-GOOGLE-CONFERENCE:https://meet.google.com/xyz-abcd-efg'])],
+    ['demo-4', invitacion('demo-4', 'Taller del viernes', en(2, 12, 0), 120, ['Jaime Ortega', 'jaime@ejemplo.dev'], ['LOCATION:Sala grande'])],
+    ['demo-5', invitacion('demo-5', 'Cierre de campaña', en(6, 17, 30), 60, ['Héctor Moreno', 'hector@nortedigital.com'])],
+  ]
+  for (const [i, t] of casos) c.procesarInvitacion('trabajo', 'Trabajo', `demo-correo-${i}`, Date.now(), t, yo)
+  c.guardarRespuesta('inv-trabajo:demo-3:', 'ACCEPTED')
+  c.guardarRespuesta('inv-trabajo:demo-4:', 'TENTATIVE')
+  const fest = (n: number, titulo: string) => {
+    const d = en(n, 0)
+    return ['BEGIN:VEVENT', `UID:fest-${n}`, `DTSTART;VALUE=DATE:${diaIcs(d)}`, `SUMMARY:${titulo}`, 'END:VEVENT']
+  }
+  c.sembrarFeed('Festivos', ['BEGIN:VCALENDAR', 'VERSION:2.0', ...fest(9, 'Fiesta local'), ...fest(19, 'Día festivo'), 'END:VCALENDAR'].join('\r\n'))
 }

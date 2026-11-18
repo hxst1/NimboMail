@@ -1702,3 +1702,532 @@ a.tb-boton {
   font-size: 11px;
   color: var(--texto-3);
 }
+
+.tb-boton.girando svg {
+  animation: girar 0.9s linear infinite;
+}
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------- calendario */
+
+.calendario {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 18px 8px;
+  gap: 10px;
+}
+.cal-cabeza {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+}
+.cal-boton {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--texto-2);
+}
+.cal-boton:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--texto);
+}
+.cal-boton.girando svg {
+  animation: girar 0.9s linear infinite;
+}
+.cal-hoy {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto);
+}
+.cal-hoy:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.cal-titulo {
+  margin: 0 auto 0 12px;
+  font-size: 23px;
+  font-weight: 600;
+  color: var(--texto);
+  white-space: nowrap;
+}
+.cal-titulo::first-letter {
+  text-transform: lowercase;
+}
+.cal-modo {
+  display: flex;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.cal-modo button {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--texto-3);
+}
+.cal-modo button.activo {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--texto);
+}
+.cal-pildoras {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin: 0 6px;
+}
+.cal-pildora {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+}
+.cal-pildora .punto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-cal);
+}
+.cal-pildora.apagada {
+  color: var(--texto-3);
+  background: transparent;
+}
+.cal-pildora.apagada .punto {
+  opacity: 0.35;
+}
+.cal-cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 300px);
+  gap: 16px;
+}
+.cal-mes {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: auto repeat(6, 1fr);
+  gap: 7px;
+  min-height: 0;
+}
+.cal-nombre-dia {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--texto-2);
+  padding: 0 2px;
+}
+.cal-dia {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 6px 6px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  cursor: default;
+}
+.cal-dia:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+.cal-dia.fuera {
+  background: transparent;
+  box-shadow: none;
+}
+.cal-dia.fuera .cal-numero {
+  color: var(--texto-3);
+}
+.cal-dia.elegido {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+.cal-numero {
+  align-self: flex-start;
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  margin: 0 0 2px 2px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+}
+.cal-dia.hoy .cal-numero {
+  background: var(--acento);
+  color: #141516;
+}
+.cal-chip {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border-left: 2px solid var(--color-cal);
+  background: color-mix(in srgb, var(--color-cal) 14%, transparent);
+  font-size: 11px;
+  color: var(--texto);
+}
+.cal-chip b {
+  font-weight: 600;
+  color: var(--texto-2);
+}
+.cal-chip.todo-dia {
+  background: color-mix(in srgb, var(--color-cal) 22%, transparent);
+}
+.cal-chip.pendiente {
+  border-left-style: dashed;
+}
+.cal-chip.cancelado,
+.cal-chip.rechazado {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.cal-mas {
+  font-size: 11px;
+  color: var(--texto-3);
+  padding-left: 6px;
+}
+
+.cal-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.cp-numero {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--texto);
+}
+.cp-fecha {
+  margin: 6px 0 14px;
+  font-size: 14px;
+  color: var(--texto-2);
+}
+.cp-lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cp-vacio {
+  font-size: 13px;
+  color: var(--texto-2);
+}
+.cal-pie {
+  font-size: 11.5px;
+  color: var(--texto-3);
+}
+
+/* Tarjeta de evento (panel del día y tarjeta de invitación en el correo) */
+.evento-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 11px 11px 13px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid var(--color-cal);
+}
+.evento-tarjeta.cancelado .et-titulo {
+  text-decoration: line-through;
+  color: var(--texto-3);
+}
+.et-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.et-hora {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--texto-2);
+}
+.et-hora::first-letter {
+  text-transform: uppercase;
+}
+.et-chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto-2);
+}
+.et-chip.NEEDS-ACTION {
+  color: var(--texto);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.et-chip.rojo,
+.et-chip.DECLINED {
+  background: rgba(184, 101, 106, 0.18);
+  color: #e0b2b5;
+}
+.et-titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto);
+  line-height: 1.3;
+}
+.et-dato {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--texto-2);
+}
+.et-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.et-acciones button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto);
+  font-size: 12px;
+  font-weight: 500;
+}
+.et-acciones button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+.et-acciones .et-unirse {
+  background: var(--acento);
+  color: #141516;
+  font-weight: 600;
+}
+.et-acciones .et-unirse:hover {
+  background: var(--acento);
+  filter: brightness(1.08);
+}
+.et-acciones .et-resp.elegida {
+  box-shadow: inset 0 0 0 1px var(--acento);
+  background: rgba(255, 255, 255, 0.12);
+}
+.et-acciones .et-correo {
+  width: 26px;
+  padding: 0;
+  justify-content: center;
+  margin-left: auto;
+}
+.evento-tarjeta.compacta {
+  margin-top: 14px;
+}
+
+/* Vista semana */
+.cal-semana {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.cs-cabecera {
+  overflow-y: hidden;
+  scrollbar-gutter: stable; /* mismo hueco que la barra de la rejilla: columnas alineadas */
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+  border-bottom: 1px solid var(--separador);
+}
+.cs-dia {
+  height: 34px;
+  font-size: 12px;
+  color: var(--texto-2);
+}
+.cs-dia b {
+  margin-left: 4px;
+  font-size: 14px;
+  color: var(--texto);
+}
+.cs-dia.hoy b {
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--acento);
+  color: #141516;
+}
+.cs-dia.elegido {
+  background: rgba(255, 255, 255, 0.05);
+}
+.cs-etiqueta {
+  font-size: 10px;
+  color: var(--texto-3);
+  padding: 4px 6px;
+  text-align: right;
+}
+.cs-todo-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  min-height: 24px;
+  border-left: 1px solid var(--separador);
+}
+.cs-rejilla {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  display: grid;
+  grid-template-columns: 52px repeat(7, 1fr);
+}
+.cs-hora {
+  font-size: 10.5px;
+  color: var(--texto-3);
+  text-align: right;
+  padding-right: 7px;
+  transform: translateY(-7px);
+}
+.cs-columna {
+  position: relative;
+  border-left: 1px solid var(--separador);
+}
+.cs-columna.hoy {
+  background: rgba(255, 255, 255, 0.02);
+}
+.cs-franja {
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+}
+.cs-ahora {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--acento);
+  z-index: 2;
+}
+.cs-evento {
+  position: absolute;
+  overflow: hidden;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-cal);
+  background: color-mix(in srgb, var(--color-cal) 20%, #1d1e20);
+  font-size: 11.5px;
+  line-height: 1.25;
+  color: var(--texto);
+  z-index: 1;
+}
+.cs-evento b {
+  display: block;
+  font-weight: 600;
+  color: var(--texto-2);
+  font-size: 10.5px;
+}
+.cs-evento.corto {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-block: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cs-evento.corto b {
+  display: inline;
+}
+.cs-evento.pendiente {
+  border-left-style: dashed;
+}
+.cs-evento.cancelado,
+.cs-evento.rechazado {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* Suscribirse */
+.cal-suscribir {
+  position: absolute;
+  top: 44px;
+  right: 40px;
+  z-index: 20;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 13px;
+  background: rgba(38, 40, 42, 0.97);
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+    0 14px 36px rgba(0, 0, 0, 0.5);
+}
+.cs-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+}
+.cal-suscribir input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 0;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--texto);
+  font: 12.5px Inter, sans-serif;
+}
+.cs-ayuda {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--texto-3);
+}
+.cs-estado {
+  font-size: 12px;
+  color: var(--texto-2);
+}
+.cs-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.cs-botones button {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  color: var(--texto-2);
+}
+.cs-botones button.principal {
+  background: var(--acento);
+  color: #141516;
+  font-weight: 600;
+}
+.cs-botones button:disabled {
+  opacity: 0.5;
+}

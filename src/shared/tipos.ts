@@ -114,3 +114,44 @@ export interface DatosRespuesta {
   cabeceraCita: string // «El martes, 17 nov 2026, 13:39, Jake Nicol <…> escribió:»
   adjuntos: Adjunto[] // los del original, para reenviar
 }
+
+// ------------------------------------------------------------ calendario
+
+export interface CalendarioInfo {
+  id: string
+  nombre: string
+  tipo: 'invitaciones' | 'ical'
+  cuenta: string | null
+  color: string
+  visible: boolean
+  actualizado: number | null
+  error: string | null
+}
+
+export interface PersonaEvento {
+  nombre: string
+  direccion: string
+  respuesta?: string
+}
+
+/** Un evento listo para pintar (las repeticiones ya desplegadas: una instancia por aparición). */
+export interface Instancia {
+  clave: string // id + inicio: única por aparición
+  id: string // el evento (para responder)
+  calendario: string
+  color: string
+  titulo: string
+  inicio: number
+  fin: number
+  todoElDia: boolean
+  lugar: string
+  descripcion: string
+  enlace: string | null // Meet, Teams, Zoom…
+  estado: 'confirmado' | 'provisional' | 'cancelado'
+  miRespuesta: string | null // NEEDS-ACTION | ACCEPTED | TENTATIVE | DECLINED | ORGANIZADOR
+  organizador: PersonaEvento | null
+  asistentes: number
+  esInvitacion: boolean
+  mensaje: string | null // el correo que la trajo
+  repite: boolean
+}

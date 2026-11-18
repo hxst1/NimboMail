@@ -6,6 +6,8 @@ import {
 } from '@phosphor-icons/react'
 import type { Adjunto, Cuerpo, Direccion, Mensaje } from '@shared/tipos'
 import { useInterfaz, type ElementoMenu } from '@/components/MenuContextual'
+import { TarjetaEvento } from '@/components/Calendario'
+import type { Instancia } from '@shared/tipos'
 import { fechaLarga, fechaLista, iniciales, tamano } from '@/formato'
 import { plegarCitasHtml, separarCita, textoAHtml } from '@/citas'
 import { api } from '@/estado'
@@ -220,6 +222,20 @@ function Tarjeta(p: {
   const ui = useInterfaz()
   const { cuerpo, error } = useCuerpo(m.id, p.abierta)
   const adjuntos = cuerpo?.adjuntos.filter((a) => !a.inline) ?? []
+
+  // ---- invitación de calendario que trae el correo (en su estado actual)
+  const [invitacion, setInvitacion] = useState<Instancia | null>(null)
+  useEffect(() => {
+    if (!p.abierta || !cuerpo) return
+    let vivo = true
+    const cargar = () => api.invitacionDe(m.id).then((r) => vivo && setInvitacion(r), () => {})
+    cargar()
+    const quitar = window.niebla.alCalendario(cargar)
+    return () => {
+      vivo = false
+      quitar()
+    }
+  }, [p.abierta, cuerpo, m.id])
 
   // ---- traducción inglés → español
   const [trad, setTrad] = useState<'original' | 'traduciendo' | 'traducido'>('original')
@@ -478,6 +494,8 @@ function Tarjeta(p: {
         <div className="tarjeta-cuerpo">
           {error && <div className="aviso-error">No se pudo cargar el mensaje: {error}</div>}
           {!cuerpo && !error && <div className="cargando">Cargando…</div>}
+
+          {invitacion && <TarjetaEvento e={invitacion} compacta />}
 
           {p.borrador && (
             <div className="aviso-barra">
