@@ -579,6 +579,11 @@ export function Reader({ hilo, seleccionado, nombreCuenta, esMio, onVolver, onVi
       <section className="lector vacio">
         <Envelope size={54} weight="thin" />
         <div>Ningún mensaje seleccionado</div>
+        {onVolver && (
+          <button className="volver" onClick={onVolver}>
+            <ArrowLeft size={14} /> Volver a la lista
+          </button>
+        )}
       </section>
     )
   }

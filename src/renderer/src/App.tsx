@@ -61,6 +61,11 @@ export function App() {
   const [barraOculta, setBarraOculta] = useState(() => leerPreferencia<'visible' | 'oculta'>('barra', 'visible') === 'oculta')
   const [soloNoLeidos, setSoloNoLeidos] = useState(false)
   const [abierto, setAbierto] = useState(vistaForzada === 'ancha-abierta') // lector a pantalla completa en lista ancha
+  // Sin mensaje seleccionado (al cambiar de buzón, al archivar el último…) no hay nada que leer:
+  // en lista ancha se vuelve a la lista, que si no el lector vacío la tapa.
+  useEffect(() => {
+    if (!correo.seleccion && vistaForzada !== 'ancha-abierta') setAbierto(false)
+  }, [correo.seleccion, vistaForzada])
   const [menuMover, setMenuMover] = useState(false)
   const [menuMas, setMenuMas] = useState<number | null>(null) // distancia al borde derecho
   const [acento, setAcento] = useAcento()
