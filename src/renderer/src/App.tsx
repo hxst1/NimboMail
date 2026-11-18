@@ -453,6 +453,7 @@ export function App() {
         <NuevaCuenta
           key={alta?.cuenta ?? 'nueva'}
           existente={alta?.cuenta ? datos.cuentas.find((c) => c.id === alta.cuenta) : undefined}
+          cuentas={datos.cuentas}
           bienvenida={datos.cuentas.length === 0}
           onCerrar={() => setAlta(null)}
           avisar={avisar}

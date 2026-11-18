@@ -30,16 +30,20 @@ function explicar(r: Extract<Prueba, { ok: false }>, d: Deteccion | null): strin
  * de la dirección; para Outlook entra con Microsoft y para el resto pide la contraseña.
  */
 export function NuevaCuenta({
-  existente,
+  existente: existenteInicial,
+  cuentas,
   bienvenida,
   onCerrar,
   avisar,
 }: {
   existente?: Cuenta // si viene, solo se cambia la contraseña de esa cuenta
+  cuentas: Cuenta[]
   bienvenida?: boolean // primera vez: sin cuentas todavía
   onCerrar: () => void
   avisar: (t: string) => void
 }) {
+  // Si escriben una dirección que ya está en TuxMail, se pasa a pedir su contraseña.
+  const [existente, setExistente] = useState<Cuenta | undefined>(existenteInicial)
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState(existente?.direccion ?? '')
   const [etiqueta, setEtiqueta] = useState('')
@@ -56,6 +60,8 @@ export function NuevaCuenta({
   const detectar = async () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setFallo({ texto: 'Escribe una dirección de correo válida' })
     setFallo(null)
+    const ya = cuentas.find((c) => c.direccion.toLowerCase() === email.trim().toLowerCase())
+    if (ya) return setExistente(ya)
     setOcupado('Buscando la configuración de tu correo…')
     try {
       const d = await api.detectarCuenta(email.trim())
