@@ -106,17 +106,18 @@ export function MenuContextual({ menu, onCerrar }: { menu: MenuAbierto; onCerrar
 /** Se cierra con Esc, con un clic fuera, al desplazar o al perder el foco la ventana. */
 function useCierre(ref: React.RefObject<HTMLDivElement | null>, onCerrar: () => void) {
   useEffect(() => {
-    const fuera = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && onCerrar()
+    // Con la rueda solo se cierra si es fuera: dentro (la burbuja de traducción) se desplaza.
+    const fuera = (e: Event) => ref.current && !ref.current.contains(e.target as Node) && onCerrar()
     const tecla = (e: KeyboardEvent) => e.key === 'Escape' && onCerrar()
     window.addEventListener('mousedown', fuera, true)
     window.addEventListener('keydown', tecla, true)
     window.addEventListener('blur', onCerrar)
-    window.addEventListener('wheel', onCerrar, { passive: true })
+    window.addEventListener('wheel', fuera, { passive: true })
     return () => {
       window.removeEventListener('mousedown', fuera, true)
       window.removeEventListener('keydown', tecla, true)
       window.removeEventListener('blur', onCerrar)
-      window.removeEventListener('wheel', onCerrar)
+      window.removeEventListener('wheel', fuera)
     }
   }, [ref, onCerrar])
 }

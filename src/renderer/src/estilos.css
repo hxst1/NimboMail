@@ -1198,7 +1198,9 @@ a.tb-boton {
   color: var(--texto-3);
 }
 .burbuja-texto {
+  min-height: 0; /* que pueda encoger dentro de la burbuja y desplazarse */
   overflow-y: auto;
+  overscroll-behavior: contain;
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--texto);
