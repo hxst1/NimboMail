@@ -2895,3 +2895,64 @@ a.tb-boton {
   color: var(--texto-2);
   white-space: nowrap;
 }
+
+/* Desplegable propio (en lugar del <select> del sistema) */
+.desplegable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px 0 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  font: 500 12.5px Inter, sans-serif;
+  color: var(--texto);
+  white-space: nowrap;
+}
+.desplegable:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+.desplegable svg {
+  flex: none;
+  color: var(--texto-3);
+}
+.desplegable.ancho {
+  flex: 1;
+  height: 30px;
+  background: transparent;
+  box-shadow: none;
+  padding-left: 0;
+  font-weight: 400;
+  font-size: 13px;
+}
+.desplegable.ancho:hover {
+  background: transparent;
+}
+.desplegable.ancho span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.su-ficha {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  font: 500 12.5px Inter, sans-serif;
+  color: var(--texto-2);
+  white-space: nowrap;
+}
+.su-ficha:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+.su-ficha.activa {
+  background: var(--acento);
+  color: #141516;
+  box-shadow: none;
+}

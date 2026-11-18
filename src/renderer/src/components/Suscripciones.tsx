@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, CheckCircle, DotsThree, EnvelopeSimple, Globe, Lightning, MagnifyingGlass, Prohibit, Trash, X } from '@phosphor-icons/react'
+import { Archive, Check, CheckCircle, DotsThree, EnvelopeSimple, Globe, Lightning, MagnifyingGlass, Prohibit, Trash, X } from '@phosphor-icons/react'
 import type { Suscripcion } from '@shared/tipos'
 import { api } from '@/estado'
 import { iniciales } from '@/formato'
 import { useInterfaz } from '@/components/MenuContextual'
+import { Desplegable } from '@/components/Desplegable'
 
 type Orden = 'total' | 'recientes' | 'sinLeer'
 
@@ -133,14 +134,19 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
           <MagnifyingGlass size={14} />
           <input placeholder="Buscar remitente" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
         </div>
-        <select className="aj-select" value={orden} onChange={(e) => setOrden(e.target.value as Orden)}>
-          <option value="total">Más correos</option>
-          <option value="recientes">Más recientes</option>
-          <option value="sinLeer">Más sin leer</option>
-        </select>
-        <label className="su-filtro">
-          <input type="checkbox" checked={ocultarDadas} onChange={(e) => setOcultarDadas(e.target.checked)} /> Ocultar las dadas de baja
-        </label>
+        <Desplegable<Orden>
+          valor={orden}
+          onCambiar={setOrden}
+          titulo="Ordenar"
+          opciones={[
+            { valor: 'total', texto: 'Más correos' },
+            { valor: 'recientes', texto: 'Más recientes' },
+            { valor: 'sinLeer', texto: 'Más sin leer' },
+          ]}
+        />
+        <button type="button" className={`su-ficha${ocultarDadas ? ' activa' : ''}`} aria-pressed={ocultarDadas} onClick={() => setOcultarDadas((v) => !v)}>
+          {ocultarDadas && <Check size={12} weight="bold" />} Ocultar las dadas de baja
+        </button>
         <button className="cal-boton" title="Volver al correo (Esc)" onClick={onCerrar}>
           <X size={17} />
         </button>

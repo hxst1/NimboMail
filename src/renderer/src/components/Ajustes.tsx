@@ -4,6 +4,7 @@ import { AVISOS, type CalendarioInfo, type Carpeta, type Cuenta, type Datos } fr
 import { api } from '@/estado'
 import { ACENTOS, SelectorAcento, type AcentoId } from '@/components/Acento'
 import type { Disposicion } from '@/components/Toolbar'
+import { Desplegable } from '@/components/Desplegable'
 
 type Seccion = 'general' | 'barra' | 'cuentas' | 'calendario' | 'acerca'
 
@@ -197,22 +198,17 @@ export function Ajustes(p: {
               <div className="aj-grupo">
                 <label className="aj-interruptor">
                   <span>Aviso por defecto de las reuniones (invitaciones)</span>
-                  <select
-                    className="aj-select"
-                    value={avisoReuniones ?? 10}
-                    onChange={(e) => {
-                      const v = Number(e.target.value)
+                  <Desplegable<number>
+                    valor={avisoReuniones ?? 10}
+                    onCambiar={(v) => {
                       setAvisoReuniones(v)
                       api.ponerAvisoReuniones(v)
                     }}
-                  >
-                    <option value={-1}>Sin aviso</option>
-                    {AVISOS.filter((a) => a.minutos <= 1440).map((a) => (
-                      <option key={a.minutos} value={a.minutos}>
-                        {a.minutos === 0 ? a.texto : `${a.texto} antes`}
-                      </option>
-                    ))}
-                  </select>
+                    opciones={[
+                      { valor: -1, texto: 'Sin aviso' },
+                      ...AVISOS.filter((a) => a.minutos <= 1440).map((a) => ({ valor: a.minutos, texto: a.minutos === 0 ? a.texto : `${a.texto} antes` })),
+                    ]}
+                  />
                 </label>
                 <div className="aj-nota">Cada evento puede tener los suyos con la campana. Los avisos salen como notificación del sistema.</div>
               </div>

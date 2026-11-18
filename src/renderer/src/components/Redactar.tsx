@@ -7,6 +7,7 @@ import type { AdjuntoBorrador, Borrador, Cuenta, Direccion } from '@shared/tipos
 import { api } from '@/estado'
 import { tamano } from '@/formato'
 import type { OpcionesRedactar } from '@/components/MenuContextual'
+import { Desplegable } from '@/components/Desplegable'
 
 const escapar = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 const textoAHtmlSimple = (t: string) => escapar(t).replace(/\r?\n/g, '<br>')
@@ -390,13 +391,12 @@ export function Redactar({
             {cuentas.length > 1 && (
               <div className="campo">
                 <label>De</label>
-                <select value={b.cuenta} onChange={(e) => cambiar({ cuenta: e.target.value })}>
-                  {cuentas.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.remitente} &lt;{c.direccion}&gt;
-                    </option>
-                  ))}
-                </select>
+                <Desplegable<string>
+                  valor={b.cuenta}
+                  onCambiar={(cuenta) => cambiar({ cuenta })}
+                  clase="ancho"
+                  opciones={cuentas.map((c) => ({ valor: c.id, texto: `${c.remitente} <${c.direccion}>` }))}
+                />
               </div>
             )}
             <CampoDirecciones
