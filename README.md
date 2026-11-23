@@ -54,6 +54,10 @@ Passwords and tokens are stored in the **system keyring** (libsecret: GNOME Keyr
 
 Grab the latest build from [**Releases**](https://github.com/hxst1/NimboMail/releases/latest):
 
+- **Debian / Ubuntu / Mint / Pop!_OS**: download `nimbomail_*_amd64.deb` and open it, or install it from a terminal:
+  ```sh
+  sudo apt install ./nimbomail_*_amd64.deb
+  ```
 - **AppImage** (any distro): download `NimboMail-*-x86_64.AppImage`, make it executable and run it.
   ```sh
   chmod +x NimboMail-*-x86_64.AppImage
@@ -64,18 +68,18 @@ Grab the latest build from [**Releases**](https://github.com/hxst1/NimboMail/rel
 - **Arch Linux**: build the package from the PKGBUILD in this repo (the AUR package is on its way):
   ```sh
   git clone https://github.com/hxst1/NimboMail.git
-  cd nimbomail/packaging/aur && makepkg -si
+  cd NimboMail/packaging/aur && makepkg -si
   ```
 
-You also need `secret-tool` (the `libsecret` package) for the keyring.
+Passwords go to your desktop's keyring through the Secret Service API: GNOME Keyring and KWallet (Plasma 5.97+) work out of the box, and so does KeePassXC with Secret Service enabled. On a bare window manager (Hyprland, Sway, i3…) install `gnome-keyring` if you don't have a keyring yet.
 
 ## Install from source
 
-You need Linux, [Node.js 24](https://nodejs.org), [pnpm](https://pnpm.io) and `secret-tool` (the `libsecret` package).
+You need Linux, [Node.js 24](https://nodejs.org), [pnpm](https://pnpm.io) and a keyring (see above).
 
 ```sh
 git clone https://github.com/hxst1/NimboMail.git
-cd nimbomail
+cd NimboMail
 pnpm install
 pnpm install-app   # builds and installs NimboMail for your user (no root)
 ```

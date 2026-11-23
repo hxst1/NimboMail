@@ -30,7 +30,9 @@ export const principal: typeof En = {
     usaClave: 'Esta cuenta usa contraseña',
     noEncontrada: 'Cuenta no encontrada',
     noDisponible: 'Cuenta no disponible',
-    faltaSecretTool: 'Falta secret-tool (paquete libsecret) para guardar la contraseña',
+    sinLlavero:
+      'No hay ningún llavero del sistema donde guardar la contraseña. Instala GNOME Keyring, KWallet o KeePassXC (con Secret Service activado) y vuelve a intentarlo',
+    llaveroCancelado: 'No se desbloqueó el llavero',
     noGuardarLlavero: 'No se pudo guardar en el llavero',
   },
   mensajes: {

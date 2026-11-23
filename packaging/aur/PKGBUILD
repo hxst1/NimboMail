@@ -1,20 +1,20 @@
 # Maintainer: hxst1
 pkgname=nimbomail-bin
 _pkgname=nimbomail
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc='Fast, minimal and private email client (IMAP/SMTP) with tracking protection, offline translation and calendar'
 arch=('x86_64')
 url='https://github.com/hxst1/NimboMail'
 license=('GPL-3.0-or-later')
-depends=('alsa-lib' 'gtk3' 'libsecret' 'nss')
+depends=('alsa-lib' 'gtk3' 'nss')
 optdepends=('libnotify: desktop notifications')
 provides=("$_pkgname")
 conflicts=("$_pkgname")
 options=('!strip' '!debug')
 source=("https://github.com/hxst1/NimboMail/releases/download/v$pkgver/NimboMail-$pkgver-x64.tar.gz"
         "$_pkgname.desktop")
-sha256sums=('1e0ffcbccd4a2b9a0f418e62b0057af4538e6b7ef637689e8ed52cd64860d0c7'
+sha256sums=('4972cba3b8c0e2d58639e6d3c429aff56db7c32ed0fead7433efb8fa618f4b28'
             '45e20d2e258f59fe511800cd3d7519502234db3091e4dff0d00f41ab21d4e4b6')
 
 package() {

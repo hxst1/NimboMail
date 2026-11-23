@@ -2,3 +2,4 @@ allowBuilds:
   electron: true
   esbuild: true
   electron-winstaller: false # solo sirve para Windows
+  usocket: false # nativo y opcional: dbus-next usa net de Node si no está

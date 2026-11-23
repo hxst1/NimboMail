@@ -32,7 +32,9 @@ export const principal = {
     usaClave: 'This account uses a password',
     noEncontrada: 'Account not found',
     noDisponible: 'Account not available',
-    faltaSecretTool: "secret-tool (libsecret package) is missing, so the password can't be saved",
+    sinLlavero:
+      "No system keyring found to store the password. Install GNOME Keyring, KWallet or KeePassXC (with Secret Service on) and try again",
+    llaveroCancelado: 'The keyring was not unlocked',
     noGuardarLlavero: "Couldn't save to the keyring",
   },
   mensajes: {

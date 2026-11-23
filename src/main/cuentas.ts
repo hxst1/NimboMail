@@ -1,6 +1,5 @@
 // Cuentas de NimboMail: la configuración en ~/.config/nimbomail/cuentas.toml y las contraseñas (o los
 // tokens de OAuth) en el llavero del sistema (libsecret: GNOME Keyring, KWallet…), nunca en archivos.
-import { execFile, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -8,6 +7,7 @@ import tls from 'node:tls'
 import { parse, stringify } from 'smol-toml'
 import { NOMBRE_ANTERIOR } from './migracion'
 import { t } from './idioma'
+import * as llavero from './llavero'
 import { renovarAcceso, type IdOAuth } from './oauth'
 
 export const RUTA_CUENTAS = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'nimbomail', 'cuentas.toml')
@@ -77,51 +77,41 @@ export function escribirCuentas(lista: ConfigCuenta[]) {
 
 // ------------------------------------------------------------ llavero
 
+const deLaCuenta = (servicio: string, direccion: string) => ({ service: servicio, account: direccion })
+
 /** Contraseña (o token de renovación de OAuth) de una cuenta. */
 export async function secreto(direccion: string): Promise<string> {
-  const valor = (await buscarSecreto(SERVICIO_LLAVERO, direccion)) ?? (await traerDeTuxMail(direccion))
+  const valor = (await llavero.buscarSecreto(deLaCuenta(SERVICIO_LLAVERO, direccion))) ?? (await traerDeTuxMail(direccion))
   if (valor === null) throw new SinClave(direccion)
   return valor
 }
 
-function buscarSecreto(servicio: string, direccion: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    execFile('secret-tool', ['lookup', 'service', servicio, 'account', direccion], { encoding: 'utf8' }, (err, out) =>
-      resolve(err || !out ? null : out),
-    )
-  })
-}
-
 /** NimboMail se llamaba TuxMail: su contraseña se pasa al servicio nuevo del llavero la primera vez que se pide. */
 async function traerDeTuxMail(direccion: string): Promise<string | null> {
-  const valor = await buscarSecreto(NOMBRE_ANTERIOR, direccion)
+  const antigua = deLaCuenta(NOMBRE_ANTERIOR, direccion)
+  const valor = await llavero.buscarSecreto(antigua)
   if (valor === null) return null
   try {
     await guardarSecreto(direccion, valor)
-    execFile('secret-tool', ['clear', 'service', NOMBRE_ANTERIOR, 'account', direccion], () => {})
+    await llavero.borrarSecreto(antigua)
   } catch {} // si no se puede guardar, se sigue usando la antigua
   return valor
 }
 
-export function guardarSecreto(direccion: string, valor: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const p = spawn('secret-tool', ['store', `--label=NimboMail: ${direccion}`, 'service', SERVICIO_LLAVERO, 'account', direccion], {
-      stdio: ['pipe', 'ignore', 'pipe'],
-    })
-    let error = ''
-    p.stderr.on('data', (d) => (error += d))
-    p.on('error', () => reject(new Error(t().principal.cuentas.faltaSecretTool)))
-    p.on('close', (codigo) => (codigo === 0 ? resolve() : reject(new Error(error.trim() || t().principal.cuentas.noGuardarLlavero))))
-    p.stdin.end(valor)
-  })
+export async function guardarSecreto(direccion: string, valor: string): Promise<void> {
+  try {
+    await llavero.guardarSecreto(`NimboMail: ${direccion}`, deLaCuenta(SERVICIO_LLAVERO, direccion), valor)
+  } catch (e) {
+    throw new Error(e instanceof Error && e.message ? e.message : t().principal.cuentas.noGuardarLlavero)
+  }
 }
 
-export function borrarSecreto(direccion: string): Promise<void> {
-  return new Promise((resolve) => {
-    execFile('secret-tool', ['clear', 'service', SERVICIO_LLAVERO, 'account', direccion], () =>
-      execFile('secret-tool', ['clear', 'service', NOMBRE_ANTERIOR, 'account', direccion], () => resolve()),
-    )
-  })
+export async function borrarSecreto(direccion: string): Promise<void> {
+  for (const servicio of [SERVICIO_LLAVERO, NOMBRE_ANTERIOR]) {
+    try {
+      await llavero.borrarSecreto(deLaCuenta(servicio, direccion))
+    } catch {} // quitar la cuenta no debe fallar por el llavero
+  }
 }
 
 export class SinClave extends Error {
