@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { ApiPrincipal } from '../main/index'
 import type { Parche } from '../main/servicio'
+import type { EstadoIdioma } from '../shared/i18n'
 
 type Promesa<F> = F extends (...a: infer A) => infer R ? (...a: A) => Promise<Awaited<R>> : never
 type Api = { [K in keyof ApiPrincipal]: Promesa<ApiPrincipal[K]> }
@@ -15,7 +16,7 @@ const METODOS: (keyof ApiPrincipal)[] = [
   'calendarios', 'eventos', 'invitacionDe', 'responderInvitacion', 'suscribirCalendario', 'quitarCalendario', 'mostrarCalendario',
   'actualizarCalendarios', 'sincronizar', 'colorCalendario', 'guardarEvento', 'borrarEvento', 'ponerAvisos', 'avisoReuniones',
   'ponerAvisoReuniones', 'suscripciones', 'darseDeBaja', 'darseDeBajaDe', 'limpiarSuscripcion', 'apuntarBaja',
-  'crearCarpeta', 'renombrarCarpeta', 'borrarCarpeta', 'abrirEnlace',
+  'crearCarpeta', 'renombrarCarpeta', 'borrarCarpeta', 'abrirEnlace', 'ponerIdioma',
 ]
 const llamar = Object.fromEntries(
   METODOS.map((m) => [m, (...args: unknown[]) => ipcRenderer.invoke('nimbomail', m, ...args)]),
@@ -30,6 +31,15 @@ const api = {
   sel: Number(arg('sel') ?? 0),
   acento: arg('acento'),
   api: llamar,
+  // Idioma al arrancar (síncrono: la interfaz sale ya en su idioma) y cada vez que cambia.
+  idioma: ipcRenderer.sendSync('nimbomail:idioma') as EstadoIdioma,
+  alIdioma: (fn: (e: EstadoIdioma) => void) => {
+    const h = (_e: unknown, estado: EstadoIdioma) => fn(estado)
+    ipcRenderer.on('nimbomail:idioma', h)
+    return () => {
+      ipcRenderer.removeListener('nimbomail:idioma', h)
+    }
+  },
   // Ruta en disco de un archivo arrastrado a la ventana (para adjuntarlo sin copiarlo en memoria).
   rutaDeArchivo: (f: File) => webUtils.getPathForFile(f),
   alCambiar: (fn: () => void) => {

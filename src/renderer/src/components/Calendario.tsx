@@ -3,8 +3,10 @@ import {
   ArrowClockwise, ArrowLeft, ArrowRight, ArrowsClockwise, Bell, BellSlash, CalendarBlank, CalendarPlus, Check, EnvelopeSimple, LinkSimple, MapPin, NotePencil,
   PencilSimple, Plus, Trash, User, VideoCamera, X,
 } from '@phosphor-icons/react'
-import { AVISOS, type CalendarioInfo, type Instancia } from '@shared/tipos'
+import { AVISOS, textoAviso, type CalendarioInfo, type Instancia } from '@shared/tipos'
+import { opcionesHora, type Textos } from '@shared/i18n'
 import { api } from '@/estado'
+import { locale, useT } from '@/i18n'
 import { useInterfaz } from '@/components/MenuContextual'
 
 type Modo = 'mes' | 'semana'
@@ -15,8 +17,26 @@ const inicioDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate
 const sumarDias = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 const lunesDe = (d: Date) => sumarDias(inicioDia(d), -((d.getDay() + 6) % 7))
 const mismoDia = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-const DIAS_SEMANA = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
+
+// Formateadores por locale (crearlos cuesta): se rehacen solo si cambia el idioma.
+let localeFormatos = ''
+let f: { hora: Intl.DateTimeFormat; horaRejilla: Intl.DateTimeFormat | null; diasSemana: string[] }
+function formatos() {
+  const l = locale()
+  if (l !== localeFormatos) {
+    localeFormatos = l
+    const diaSemana = new Intl.DateTimeFormat(l, { weekday: 'short' })
+    f = {
+      hora: new Intl.DateTimeFormat(l, opcionesHora(l)),
+      // Con reloj de 12 horas, la rejilla de la semana pone «1 AM»; si no, «01:00».
+      horaRejilla: new Intl.DateTimeFormat(l, { hour: 'numeric' }).resolvedOptions().hour12 ? new Intl.DateTimeFormat(l, { hour: 'numeric' }) : null,
+      diasSemana: Array.from({ length: 7 }, (_, i) => diaSemana.format(new Date(2024, 0, 1 + i))), // el 1/1/2024 fue lunes
+    }
+  }
+  return f
+}
+const hora = (ms: number) => formatos().hora.format(ms)
+const horaRejilla = (h: number) => formatos().horaRejilla?.format(new Date(2024, 0, 1, h)) ?? `${String(h).padStart(2, '0')}:00`
 
 /** ¿La instancia ocupa ese día? (los de varios días salen en todos) */
 const tocaDia = (e: Instancia, d: Date) => {
@@ -38,34 +58,36 @@ export function plataforma(enlace: string | null): { nombre: string; color: stri
 /** Color de un evento: el de su plataforma (Meet verde, Teams morado, Zoom azul…) o el de su calendario. */
 export const colorDe = (e: Instancia) => plataforma(e.enlace)?.color ?? e.color
 
-/** «10 minutos y 1 día antes» */
-export function textoAvisos(avisos: number[]): string {
-  if (!avisos.length) return 'Sin avisos'
-  const t = avisos.map((m) => AVISOS.find((a) => a.minutos === m)?.texto ?? `${m} min`)
-  const antes = avisos.some((m) => m > 0)
-  const lista = t.length > 1 ? `${t.slice(0, -1).join(', ')} y ${t.at(-1)}` : t[0]
-  return antes ? `${lista}${avisos.includes(0) && avisos.length === 1 ? '' : ' antes'}`.replace('Al empezar antes', 'al empezar') : lista
+/** «10 minutes and 1 day before» */
+export function textoAvisos(avisos: number[], t: Textos): string {
+  if (!avisos.length) return t.calendario.sinAvisos
+  return t.calendario.resumenAvisos(
+    avisos.map((m) => textoAviso(m, t)),
+    avisos.some((m) => m > 0),
+  )
 }
 
-const RESPUESTAS: Record<string, string> = {
-  'NEEDS-ACTION': 'Sin responder',
-  ACCEPTED: 'Aceptada',
-  TENTATIVE: 'Quizá',
-  DECLINED: 'Rechazada',
-  ORGANIZADOR: 'La organizas tú',
-}
+const respuestas = (t: Textos): Record<string, string> => ({
+  'NEEDS-ACTION': t.calendario.tarjeta.respuestas.sinResponder,
+  ACCEPTED: t.calendario.tarjeta.respuestas.aceptada,
+  TENTATIVE: t.calendario.tarjeta.respuestas.quiza,
+  DECLINED: t.calendario.tarjeta.respuestas.rechazada,
+  ORGANIZADOR: t.calendario.tarjeta.respuestas.organizas,
+})
 
 /** Tarjeta de una invitación: hora, quién organiza, Unirse y Aceptar / Quizá / Rechazar. */
 export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; onAbrirCorreo?: (id: string) => void; compacta?: boolean }) {
   const ui = useInterfaz()
+  const t = useT()
+  const tt = t.calendario.tarjeta
   const [enviando, setEnviando] = useState<string | null>(null)
   const responder = async (p: 'ACCEPTED' | 'TENTATIVE' | 'DECLINED') => {
     setEnviando(p)
     try {
       await api.responderInvitacion(e.id, p)
-      ui.avisar(p === 'ACCEPTED' ? 'Invitación aceptada' : p === 'TENTATIVE' ? 'Respondido: quizá' : 'Invitación rechazada')
+      ui.avisar(p === 'ACCEPTED' ? tt.invitacionAceptada : p === 'TENTATIVE' ? tt.respondidoQuiza : tt.invitacionRechazada)
     } catch (err) {
-      ui.avisar(`No se pudo responder: ${(err as Error).message}`)
+      ui.avisar(tt.errorResponder((err as Error).message))
     } finally {
       setEnviando(null)
     }
@@ -78,23 +100,23 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
       y,
       elementos: [
         ...AVISOS.map((a) => ({
-          etiqueta: a.minutos === 0 ? a.texto : `${a.texto} antes`,
-          icono: e.avisos.includes(a.minutos) ? <Check size={14} weight="bold" /> : <span />,
-          accion: () => api.ponerAvisos(e.id, e.avisos.includes(a.minutos) ? e.avisos.filter((m) => m !== a.minutos) : [...e.avisos, a.minutos]),
+          etiqueta: a === 0 ? textoAviso(a, t) : t.calendario.avisoAntes(textoAviso(a, t)),
+          icono: e.avisos.includes(a) ? <Check size={14} weight="bold" /> : <span />,
+          accion: () => api.ponerAvisos(e.id, e.avisos.includes(a) ? e.avisos.filter((m) => m !== a) : [...e.avisos, a]),
         })),
         '-' as const,
-        { etiqueta: 'Sin avisos', icono: <BellSlash size={14} />, accion: () => api.ponerAvisos(e.id, []) },
+        { etiqueta: tt.menuSinAvisos, icono: <BellSlash size={14} />, accion: () => api.ponerAvisos(e.id, []) },
       ],
     })
   const puedeResponder = e.esInvitacion && !cancelada && e.miRespuesta !== 'ORGANIZADOR' && !!e.organizador
   const cuando = e.todoElDia
-    ? 'Todo el día'
+    ? tt.todoElDia
     : `${hora(e.inicio)} – ${hora(e.fin)}`
   return (
     <div className={`evento-tarjeta${cancelada ? ' cancelado' : ''}${compacta ? ' compacta' : ''}`} style={{ '--color-cal': colorDe(e) } as React.CSSProperties}>
       <div className="et-cabeza">
-        <span className="et-hora">{compacta ? new Date(e.inicio).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' : ''}{cuando}</span>
-        {cancelada ? <span className="et-chip rojo">Cancelada</span> : e.esInvitacion && e.miRespuesta && <span className={`et-chip ${e.miRespuesta}`}>{RESPUESTAS[e.miRespuesta] ?? e.miRespuesta}</span>}
+        <span className="et-hora">{compacta ? new Date(e.inicio).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' : ''}{cuando}</span>
+        {cancelada ? <span className="et-chip rojo">{tt.cancelada}</span> : e.esInvitacion && e.miRespuesta && <span className={`et-chip ${e.miRespuesta}`}>{respuestas(t)[e.miRespuesta] ?? e.miRespuesta}</span>}
       </div>
       <div className="et-titulo">{e.titulo}</div>
       {e.lugar && !e.lugar.includes(e.enlace ?? '¬') && (
@@ -105,12 +127,12 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
       {e.organizador && e.miRespuesta !== 'ORGANIZADOR' && (
         <div className="et-dato">
           <User size={13} /> {e.organizador.nombre || e.organizador.direccion}
-          {e.asistentes > 1 ? ` · ${e.asistentes} invitados` : ''}
+          {e.asistentes > 1 ? ` · ${tt.invitados(e.asistentes)}` : ''}
         </div>
       )}
       {e.repite && (
         <div className="et-dato">
-          <ArrowsClockwise size={13} /> Se repite
+          <ArrowsClockwise size={13} /> {tt.seRepite}
         </div>
       )}
       {e.propio && e.descripcion && !compacta && (
@@ -120,34 +142,34 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
       )}
       {!cancelada && (
         <div className="et-dato">
-          {e.avisos.length ? <Bell size={13} /> : <BellSlash size={13} />} {textoAvisos(e.avisos)}
+          {e.avisos.length ? <Bell size={13} /> : <BellSlash size={13} />} {textoAvisos(e.avisos, t)}
         </div>
       )}
       <div className="et-acciones">
         {e.enlace && !cancelada && (
           <button className="et-unirse" onClick={() => api.abrirEnlace(e.enlace!)}>
-            <VideoCamera size={14} weight="fill" /> Unirse{plataforma(e.enlace) ? ` a ${plataforma(e.enlace)!.nombre}` : ''}
+            <VideoCamera size={14} weight="fill" /> {plataforma(e.enlace) ? tt.unirseA(plataforma(e.enlace)!.nombre) : tt.unirse}
           </button>
         )}
         {puedeResponder &&
           (['ACCEPTED', 'TENTATIVE', 'DECLINED'] as const).map((p) => (
             <button key={p} className={`et-resp${e.miRespuesta === p ? ' elegida' : ''}`} disabled={!!enviando} onClick={() => responder(p)}>
-              {enviando === p ? '…' : { ACCEPTED: 'Aceptar', TENTATIVE: 'Quizá', DECLINED: 'Rechazar' }[p]}
+              {enviando === p ? '…' : { ACCEPTED: tt.aceptar, TENTATIVE: tt.quiza, DECLINED: tt.rechazar }[p]}
             </button>
           ))}
         {e.propio && (
           <button onClick={() => ui.editarEvento(e)}>
-            <PencilSimple size={13} /> Editar
+            <PencilSimple size={13} /> {tt.editar}
           </button>
         )}
         <span className="et-hueco" />
         {!cancelada && !e.propio && (
-          <button className="et-icono" title="Avisos" onClick={(ev) => menuAvisos(ev.clientX, ev.clientY)}>
+          <button className="et-icono" title={tt.avisos} onClick={(ev) => menuAvisos(ev.clientX, ev.clientY)}>
             <Bell size={14} />
           </button>
         )}
         {e.mensaje && onAbrirCorreo && (
-          <button className="et-icono" title="Ver el correo" onClick={() => onAbrirCorreo(e.mensaje!)}>
+          <button className="et-icono" title={tt.verCorreo} onClick={() => onAbrirCorreo(e.mensaje!)}>
             <EnvelopeSimple size={14} />
           </button>
         )}
@@ -158,14 +180,16 @@ export function TarjetaEvento({ e, onAbrirCorreo, compacta }: { e: Instancia; on
 
 function Suscribir({ onCerrar }: { onCerrar: () => void }) {
   const ui = useInterfaz()
+  const t = useT()
+  const ts = t.calendario.suscribir
   const [nombre, setNombre] = useState('')
   const [url, setUrl] = useState('')
   const [estado, setEstado] = useState<string | null>(null)
   const enviar = async () => {
-    setEstado('Comprobando el enlace…')
+    setEstado(ts.comprobando)
     try {
       const c = await api.suscribirCalendario(nombre, url)
-      ui.avisar(`Calendario «${c.nombre}» añadido`)
+      ui.avisar(ts.anadido(c.nombre))
       onCerrar()
     } catch (e) {
       setEstado((e as Error).message)
@@ -180,17 +204,17 @@ function Suscribir({ onCerrar }: { onCerrar: () => void }) {
       }}
       onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onCerrar())}
     >
-      <div className="cs-titulo">Suscribirse a un calendario</div>
-      <input placeholder="Nombre (Festivos, Personal…)" value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
-      <input placeholder="Enlace iCal (https://… o webcal://…)" value={url} onChange={(e) => setUrl(e.target.value)} />
-      <div className="cs-ayuda">En Google Calendar: Configuración del calendario → «Dirección secreta en formato iCal». Se guarda en el llavero.</div>
+      <div className="cs-titulo">{ts.titulo}</div>
+      <input placeholder={ts.nombre} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
+      <input placeholder={ts.enlace} value={url} onChange={(e) => setUrl(e.target.value)} />
+      <div className="cs-ayuda">{ts.ayuda}</div>
       {estado && <div className="cs-estado">{estado}</div>}
       <div className="cs-botones">
         <button type="button" onClick={onCerrar}>
-          Cancelar
+          {t.comun.acciones.cancelar}
         </button>
         <button type="submit" className="destacado" disabled={!url.trim()}>
-          Añadir
+          {t.comun.acciones.anadir}
         </button>
       </div>
     </form>
@@ -199,6 +223,9 @@ function Suscribir({ onCerrar }: { onCerrar: () => void }) {
 
 export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => void; onAbrirCorreo: (id: string) => void; irA?: number | null }) {
   const ui = useInterfaz()
+  const t = useT()
+  const tc = t.calendario
+  const diasSemana = formatos().diasSemana
   const [modo, setModo] = useState<Modo>(() => {
     try {
       return (localStorage.getItem('calendarioModo') as Modo) || 'mes'
@@ -280,18 +307,17 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
   // Clic derecho en un día (o en una hora de la semana): crear un evento ahí.
   const menuDia = (d: Date, x: number, y: number, hora?: number) => {
     setSeleccion(d)
-    const nombre = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' })
     const elementos = [
       ...(hora !== undefined
         ? [
             {
-              etiqueta: `Nuevo evento a las ${String(Math.floor(hora)).padStart(2, '0')}:${hora % 1 ? '30' : '00'}…`,
+              etiqueta: tc.nuevoALas(new Date(d.getTime() + hora * 3_600_000).toLocaleTimeString(locale(), opcionesHora(locale()))),
               icono: <CalendarPlus size={15} />,
               accion: () => ui.nuevoEvento({ inicio: d.getTime() + hora * 3_600_000 }),
             },
           ]
-        : [{ etiqueta: `Nuevo evento el ${nombre}…`, icono: <CalendarPlus size={15} />, accion: () => ui.nuevoEvento({ inicio: d.getTime() }) }]),
-      { etiqueta: 'Nuevo evento de todo el día…', icono: <CalendarBlank size={15} />, accion: () => ui.nuevoEvento({ inicio: d.getTime(), todoElDia: true }) },
+        : [{ etiqueta: tc.nuevoEl(d, locale()), icono: <CalendarPlus size={15} />, accion: () => ui.nuevoEvento({ inicio: d.getTime() }) }]),
+      { etiqueta: tc.nuevoTodoElDia, icono: <CalendarBlank size={15} />, accion: () => ui.nuevoEvento({ inicio: d.getTime(), todoElDia: true }) },
     ]
     ui.abrirMenu({ x, y, elementos })
   }
@@ -301,12 +327,12 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
       x,
       y,
       elementos: [
-        { etiqueta: c.visible ? 'Ocultar' : 'Mostrar', accion: () => api.mostrarCalendario(c.id, !c.visible).then(cargar) },
+        { etiqueta: c.visible ? tc.ocultar : tc.mostrar, accion: () => api.mostrarCalendario(c.id, !c.visible).then(cargar) },
         ...(c.tipo === 'ical'
           ? [
-              { etiqueta: 'Actualizar ahora', icono: <ArrowClockwise size={15} />, accion: () => api.actualizarCalendarios() },
+              { etiqueta: tc.actualizarAhora, icono: <ArrowClockwise size={15} />, accion: () => api.actualizarCalendarios() },
               '-' as const,
-              { etiqueta: `Quitar «${c.nombre}»`, icono: <Trash size={15} />, peligro: true, accion: () => api.quitarCalendario(c.id) },
+              { etiqueta: tc.quitar(c.nombre), icono: <Trash size={15} />, peligro: true, accion: () => api.quitarCalendario(c.id) },
             ]
           : []),
       ],
@@ -314,28 +340,28 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
 
   const titulo =
     modo === 'mes'
-      ? `${ancla.toLocaleDateString('es-ES', { month: 'long' })} ${ancla.getFullYear()}`
-      : `${dias[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} – ${dias[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`
+      ? `${ancla.toLocaleDateString(locale(), { month: 'long' })} ${ancla.getFullYear()}`
+      : `${dias[0].toLocaleDateString(locale(), { day: 'numeric', month: 'short' })} – ${dias[6].toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' })}`
   const delDia = eventos.filter((e) => tocaDia(e, seleccion))
   const sinActualizar = calendarios.filter((c) => c.error)
 
   return (
     <section className="calendario">
       <header className="cal-cabeza">
-        <button className="cal-boton" title="Anterior (←)" onClick={() => mover(-1)}>
+        <button className="cal-boton" title={tc.anterior} onClick={() => mover(-1)}>
           <ArrowLeft size={17} />
         </button>
-        <button className="cal-boton" title="Siguiente (→)" onClick={() => mover(1)}>
+        <button className="cal-boton" title={tc.siguiente} onClick={() => mover(1)}>
           <ArrowRight size={17} />
         </button>
         <button className="cal-hoy" onClick={() => (setAncla(hoy), setSeleccion(hoy))}>
-          Hoy
+          {tc.hoy}
         </button>
         <h1 className="cal-titulo">{titulo}</h1>
         <div className="cal-modo">
           {(['mes', 'semana'] as const).map((m) => (
             <button key={m} className={modo === m ? 'activo' : ''} onClick={() => cambiarModo(m)}>
-              {m === 'mes' ? 'Mes' : 'Semana'}
+              {m === 'mes' ? tc.mes : tc.semana}
             </button>
           ))}
         </div>
@@ -346,12 +372,12 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
               className={`cal-pildora${c.visible ? '' : ' apagada'}`}
               title={
                 c.error
-                  ? `No se pudo actualizar: ${c.error}`
+                  ? tc.noSeActualizo(c.error)
                   : c.tipo === 'invitaciones'
-                    ? 'Invitaciones de esta cuenta'
+                    ? tc.deInvitaciones
                     : c.tipo === 'propio'
-                      ? 'Tus eventos y notas'
-                      : 'Calendario suscrito'
+                      ? tc.propio
+                      : tc.suscrito
               }
               style={{ '--color-cal': c.color } as React.CSSProperties}
               onClick={() => api.mostrarCalendario(c.id, !c.visible).then(cargar)}
@@ -366,24 +392,24 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
         </div>
         <button
           className="cal-boton"
-          title="Nuevo evento o suscribirse a un calendario"
+          title={tc.nuevoOSuscribir}
           onClick={(ev) =>
             ui.abrirMenu({
               x: ev.clientX - 180,
               y: ev.clientY + 14,
               elementos: [
-                { etiqueta: 'Nuevo evento…', icono: <CalendarPlus size={15} />, atajo: 'N', accion: () => ui.nuevoEvento({ inicio: seleccion.getTime() }) },
-                { etiqueta: 'Suscribirse a un calendario…', icono: <LinkSimple size={15} />, accion: () => setSuscribiendo(true) },
+                { etiqueta: tc.nuevoEvento, icono: <CalendarPlus size={15} />, atajo: 'N', accion: () => ui.nuevoEvento({ inicio: seleccion.getTime() }) },
+                { etiqueta: tc.suscribirse, icono: <LinkSimple size={15} />, accion: () => setSuscribiendo(true) },
               ],
             })
           }
         >
           <Plus size={17} />
         </button>
-        <button className={`cal-boton${actualizando ? ' girando' : ''}`} title="Actualizar los calendarios" onClick={actualizar}>
+        <button className={`cal-boton${actualizando ? ' girando' : ''}`} title={tc.actualizar} onClick={actualizar}>
           <ArrowClockwise size={17} />
         </button>
-        <button className="cal-boton" title="Volver al correo (Esc)" onClick={onCerrar}>
+        <button className="cal-boton" title={tc.volver} onClick={onCerrar}>
           <X size={17} />
         </button>
         {suscribiendo && <Suscribir onCerrar={() => setSuscribiendo(false)} />}
@@ -392,7 +418,7 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
       <div className="cal-cuerpo">
         {modo === 'mes' ? (
           <div className="cal-mes">
-            {DIAS_SEMANA.map((d) => (
+            {diasSemana.map((d) => (
               <div key={d} className="cal-nombre-dia">
                 {d}
               </div>
@@ -422,7 +448,7 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
                       {!e.todoElDia && <b>{hora(e.inicio)}</b>} {e.titulo}
                     </span>
                   ))}
-                  {evs.length > 3 && <span className="cal-mas">+{evs.length - 3} más</span>}
+                  {evs.length > 3 && <span className="cal-mas">{tc.mas(evs.length - 3)}</span>}
                 </div>
               )
             })}
@@ -433,10 +459,10 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
               <div />
               {dias.map((d) => (
                 <button key={d.getTime()} className={`cs-dia${mismoDia(d, hoy) ? ' hoy' : ''}${mismoDia(d, seleccion) ? ' elegido' : ''}`} onClick={() => setSeleccion(d)}>
-                  {DIAS_SEMANA[(d.getDay() + 6) % 7]} <b>{d.getDate()}</b>
+                  {diasSemana[(d.getDay() + 6) % 7]} <b>{d.getDate()}</b>
                 </button>
               ))}
-              <div className="cs-etiqueta">todo el día</div>
+              <div className="cs-etiqueta">{tc.todoElDia}</div>
               {dias.map((d) => (
                 <div key={d.getTime()} className="cs-todo-dia">
                   {eventos
@@ -453,7 +479,7 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
               <div className="cs-horas">
                 {Array.from({ length: 24 }, (_, h) => (
                   <div key={h} className="cs-hora" style={{ height: HORA_PX }}>
-                    {h ? `${String(h).padStart(2, '0')}:00` : ''}
+                    {h ? horaRejilla(h) : ''}
                   </div>
                 ))}
               </div>
@@ -524,19 +550,19 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
         <aside className="cal-panel">
           <div className="cp-numero">{seleccion.getDate()}</div>
           <div className="cp-fecha">
-            {seleccion.toLocaleDateString('es-ES', { weekday: 'long' })}, {seleccion.toLocaleDateString('es-ES', { month: 'long' })} {seleccion.getFullYear()}
+            {seleccion.toLocaleDateString(locale(), { weekday: 'long' })}, {seleccion.toLocaleDateString(locale(), { month: 'long' })} {seleccion.getFullYear()}
           </div>
           <div className="cp-lista">
-            {delDia.length ? delDia.map((e) => <TarjetaEvento key={e.clave} e={e} onAbrirCorreo={onAbrirCorreo} />) : <div className="cp-vacio">Sin eventos</div>}
+            {delDia.length ? delDia.map((e) => <TarjetaEvento key={e.clave} e={e} onAbrirCorreo={onAbrirCorreo} />) : <div className="cp-vacio">{tc.sinEventos}</div>}
           </div>
         </aside>
       </div>
       <footer className="cal-pie">
         {calendarios.length === 0
-          ? 'Las invitaciones que te lleguen por correo aparecerán aquí. Con «+» (o doble clic en un día) creas tus eventos, o te suscribes a un calendario por su enlace iCal.'
+          ? tc.pieVacio
           : sinActualizar.length
-            ? `No se pudo actualizar: ${sinActualizar.map((c) => c.nombre).join(', ')}`
-            : `${calendarios.length} ${calendarios.length === 1 ? 'calendario' : 'calendarios'} · las reuniones también se exportan para otros calendarios del escritorio`}
+            ? tc.noSeActualizo(sinActualizar.map((c) => c.nombre).join(', '))
+            : tc.pie(calendarios.length)}
       </footer>
     </section>
   )

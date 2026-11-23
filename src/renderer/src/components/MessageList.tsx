@@ -3,6 +3,7 @@ import { VList, type VListHandle } from 'virtua'
 import { ArrowBendUpLeft, CaretCircleRight, Flag, Paperclip } from '@phosphor-icons/react'
 import type { Mensaje } from '@shared/tipos'
 import { fechaLista } from '@/formato'
+import { useT } from '@/i18n'
 
 interface Props {
   mensajes: Mensaje[]
@@ -18,6 +19,7 @@ interface Props {
  * que da igual tener 1.000 conversaciones que 50.000.
  */
 export function MessageList({ mensajes, seleccion, ancha, onSeleccionar, onAbrir, onMenu }: Props) {
+  const t = useT()
   const lista = useRef<VListHandle>(null)
 
   // La fila seleccionada siempre a la vista al moverse con el teclado.
@@ -31,7 +33,7 @@ export function MessageList({ mensajes, seleccion, ancha, onSeleccionar, onAbrir
   if (!mensajes.length) {
     return (
       <div className="lista vacia">
-        <div className="vacia-texto">Sin mensajes</div>
+        <div className="vacia-texto">{t.lista.sinMensajes}</div>
       </div>
     )
   }
@@ -63,6 +65,7 @@ const Fila = memo(function Fila({
   onAbrir: (id: string) => void
   onMenu: (m: Mensaje, x: number, y: number) => void
 }) {
+  const t = useT()
   return (
     <div
       data-id={m.id}
@@ -84,7 +87,7 @@ const Fila = memo(function Fila({
           <span className="fila-fecha">{fechaLista(m.fecha)}</span>
         </div>
         <div className="fila-linea">
-          <span className="fila-asunto">{m.asunto || '(Sin asunto)'}</span>
+          <span className="fila-asunto">{m.asunto || t.lista.sinAsunto}</span>
           <span className="fila-iconos">
             {m.marcado && <Flag size={12} weight="fill" className="bandera" />}
             {m.adjuntos > 0 && <Paperclip size={13} />}

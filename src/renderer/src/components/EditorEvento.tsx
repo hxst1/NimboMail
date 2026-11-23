@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Bell, CalendarPlus, EnvelopeSimple, Trash, X } from '@phosphor-icons/react'
-import { AVISOS, type Instancia } from '@shared/tipos'
+import { AVISOS, textoAviso, type Instancia } from '@shared/tipos'
 import { api } from '@/estado'
+import { useT } from '@/i18n'
 
 /** Datos para empezar un evento nuevo (desde un día del calendario o desde un correo). */
 export interface NuevoEvento {
@@ -51,6 +52,8 @@ export function EditorEvento({
   onCerrar: () => void
   avisar: (t: string) => void
 }) {
+  const t = useT()
+  const te = t.editorEvento
   const ini = existente?.inicio ?? inicioPorDefecto(nuevo?.inicio)
   const [titulo, setTitulo] = useState(existente?.titulo ?? nuevo?.titulo ?? '')
   const [todoElDia, setTodoElDia] = useState(existente?.todoElDia ?? nuevo?.todoElDia ?? false)
@@ -71,7 +74,7 @@ export function EditorEvento({
     if (!todoElDia && fin <= inicio) fin += 86_400_000 // de 23:00 a 01:00: acaba al día siguiente
     try {
       await api.guardarEvento({ id: existente?.id ?? null, titulo, inicio, fin, todoElDia, lugar, nota, mensaje, avisos })
-      avisar(existente ? 'Evento guardado' : 'Evento creado')
+      avisar(existente ? te.guardado : te.creado)
       onCerrar()
     } catch (e) {
       setError((e as Error).message)
@@ -82,7 +85,7 @@ export function EditorEvento({
     if (!existente) return
     if (!borrando) return setBorrando(true)
     await api.borrarEvento(existente.id)
-    avisar('Evento borrado')
+    avisar(te.borrado)
     onCerrar()
   }
 
@@ -103,33 +106,33 @@ export function EditorEvento({
       >
         <header className="ee-cabeza">
           <CalendarPlus size={18} />
-          <span>{existente ? 'Editar evento' : 'Nuevo evento'}</span>
-          <button type="button" className="ee-cerrar" onClick={onCerrar} aria-label="Cerrar">
+          <span>{existente ? te.editar : te.nuevo}</span>
+          <button type="button" className="ee-cerrar" onClick={onCerrar} aria-label={t.comun.acciones.cerrar}>
             <X size={15} />
           </button>
         </header>
 
-        <input className="ee-titulo" placeholder="Título" value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus />
+        <input className="ee-titulo" placeholder={te.titulo} value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus />
 
         <label className="ee-fila">
-          <span>Todo el día</span>
+          <span>{te.todoElDia}</span>
           <button type="button" role="switch" aria-checked={todoElDia} className={`ee-interruptor${todoElDia ? ' encendido' : ''}`} onClick={() => setTodoElDia((v) => !v)}>
             <span />
           </button>
         </label>
 
         <div className="ee-fila">
-          <span>{todoElDia ? 'Desde' : 'Día'}</span>
+          <span>{todoElDia ? te.desde : te.dia}</span>
           <input type="date" value={fecha} onChange={(e) => (setFecha(e.target.value), fechaFin < e.target.value && setFechaFin(e.target.value))} />
         </div>
         {todoElDia ? (
           <div className="ee-fila">
-            <span>Hasta</span>
+            <span>{te.hasta}</span>
             <input type="date" value={fechaFin} min={fecha} onChange={(e) => setFechaFin(e.target.value)} />
           </div>
         ) : (
           <div className="ee-fila">
-            <span>Hora</span>
+            <span>{te.hora}</span>
             <div className="ee-horas">
               <input
                 type="time"
@@ -147,17 +150,17 @@ export function EditorEvento({
           </div>
         )}
 
-        <input className="ee-campo" placeholder="Lugar o enlace de la videollamada" value={lugar} onChange={(e) => setLugar(e.target.value)} />
-        <textarea className="ee-campo ee-nota" placeholder="Nota" value={nota} onChange={(e) => setNota(e.target.value)} rows={3} />
+        <input className="ee-campo" placeholder={te.lugar} value={lugar} onChange={(e) => setLugar(e.target.value)} />
+        <textarea className="ee-campo ee-nota" placeholder={te.nota} value={nota} onChange={(e) => setNota(e.target.value)} rows={3} />
 
         <div className="ee-avisos">
           <div className="ee-etiqueta">
-            <Bell size={14} /> Avisos {todoElDia && <span className="ee-sub">(cuentan desde las 9:00 del día)</span>}
+            <Bell size={14} /> {te.avisos} {todoElDia && <span className="ee-sub">{te.avisosTodoElDia}</span>}
           </div>
           <div className="ee-fichas">
             {AVISOS.map((a) => (
-              <button type="button" key={a.minutos} className={avisos.includes(a.minutos) ? 'elegido' : ''} onClick={() => alternarAviso(a.minutos)}>
-                {a.minutos === 0 ? a.texto : `${a.texto} antes`}
+              <button type="button" key={a} className={avisos.includes(a) ? 'elegido' : ''} onClick={() => alternarAviso(a)}>
+                {a === 0 ? textoAviso(a, t) : te.antes(textoAviso(a, t))}
               </button>
             ))}
           </div>
@@ -165,7 +168,7 @@ export function EditorEvento({
 
         {mensaje && (
           <div className="ee-correo">
-            <EnvelopeSimple size={14} /> Enlazado al correo{nuevo?.asuntoCorreo ? ` «${nuevo.asuntoCorreo}»` : ''}
+            <EnvelopeSimple size={14} /> {te.enlazado(nuevo?.asuntoCorreo)}
           </div>
         )}
         {error && <div className="nc-fallo">{error}</div>}
@@ -173,15 +176,15 @@ export function EditorEvento({
         <footer className="ee-pie">
           {existente && (
             <button type="button" className={`ee-borrar${borrando ? ' seguro' : ''}`} onClick={borrar}>
-              <Trash size={14} /> {borrando ? '¿Seguro? Borrar' : 'Borrar'}
+              <Trash size={14} /> {borrando ? te.borrarSeguro : t.comun.acciones.borrar}
             </button>
           )}
           <span className="ee-hueco" />
           <button type="button" onClick={onCerrar}>
-            Cancelar
+            {t.comun.acciones.cancelar}
           </button>
           <button type="submit" className="destacado">
-            {existente ? 'Guardar' : 'Crear evento'}
+            {existente ? t.comun.acciones.guardar : te.crear}
           </button>
         </footer>
       </form>

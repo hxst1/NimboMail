@@ -20,6 +20,7 @@ import {
   type Icon,
 } from '@phosphor-icons/react'
 import { api } from '@/estado'
+import { useT } from '@/i18n'
 
 export type Disposicion = 'columnas' | 'ancha'
 
@@ -69,6 +70,7 @@ function Boton(p: { icono: Icon; titulo: string; onClick: () => void; activo?: b
 }
 
 export function Toolbar(p: Props) {
+  const t = useT()
   const [buscando, setBuscando] = useState(false)
   const campo = useRef<HTMLInputElement>(null)
   const sin = !p.haySeleccion
@@ -84,10 +86,10 @@ export function Toolbar(p: Props) {
     <header className="toolbar">
       {p.barraOculta && (
         <>
-          <button className="boton-icono cerrar-ventana" title="Cerrar (NimboMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
+          <button className="boton-icono cerrar-ventana" title={t.barra.cerrar} onClick={() => api.cerrarVentana()}>
             <X size={16} weight="bold" />
           </button>
-          <button className="boton-icono" title="Mostrar barra lateral" onClick={p.onMostrarBarra}>
+          <button className="boton-icono" title={t.barra.mostrarLateral} onClick={p.onMostrarBarra}>
             <SidebarSimple size={18} />
           </button>
         </>
@@ -99,10 +101,10 @@ export function Toolbar(p: Props) {
 
       <div className="tb-grupos">
         <div className="capsula">
-          <Boton icono={FunnelSimple} titulo="Solo no leídos" activo={p.filtroNoLeidos} onClick={() => p.onAccion('filtro')} />
+          <Boton icono={FunnelSimple} titulo={t.barra.soloNoLeidos} activo={p.filtroNoLeidos} onClick={() => p.onAccion('filtro')} />
           <Boton
             icono={p.disposicion === 'columnas' ? Rows : Columns}
-            titulo={p.disposicion === 'columnas' ? 'Lista ancha' : 'Lista y mensaje en columnas'}
+            titulo={p.disposicion === 'columnas' ? t.barra.listaAncha : t.barra.columnas}
             onClick={() => p.onAccion('disposicion')}
           />
         </div>
@@ -110,33 +112,33 @@ export function Toolbar(p: Props) {
         <div className="capsula">
           <Boton
             icono={ArrowClockwise}
-            titulo={p.actualizando ? 'Buscando correo nuevo…' : 'Obtener correo nuevo (F5)'}
+            titulo={p.actualizando ? t.barra.buscandoCorreo : t.barra.obtenerCorreo}
             clase={p.actualizando ? 'girando' : undefined}
             onClick={() => p.onAccion('actualizar')}
           />
-          <Boton icono={NotePencil} titulo="Redactar (Ctrl+N)" onClick={() => p.onAccion('redactar')} />
+          <Boton icono={NotePencil} titulo={t.barra.redactar} onClick={() => p.onAccion('redactar')} />
         </div>
 
         <div className="capsula">
-          <Boton icono={ArrowBendUpLeft} titulo="Responder (Ctrl+R)" disabled={sin} onClick={() => p.onAccion('responder')} />
-          <Boton icono={ArrowBendDoubleUpLeft} titulo="Responder a todos (Ctrl+Shift+R)" disabled={sin} onClick={() => p.onAccion('responderTodos')} />
-          <Boton icono={ArrowBendUpRight} titulo="Reenviar (Ctrl+Shift+F)" disabled={sin} onClick={() => p.onAccion('reenviar')} />
+          <Boton icono={ArrowBendUpLeft} titulo={t.barra.responder} disabled={sin} onClick={() => p.onAccion('responder')} />
+          <Boton icono={ArrowBendDoubleUpLeft} titulo={t.barra.responderTodos} disabled={sin} onClick={() => p.onAccion('responderTodos')} />
+          <Boton icono={ArrowBendUpRight} titulo={t.barra.reenviar} disabled={sin} onClick={() => p.onAccion('reenviar')} />
         </div>
 
         <div className="capsula">
-          <Boton icono={Archive} titulo="Archivar (Ctrl+Shift+A)" disabled={sin} onClick={() => p.onAccion('archivar')} />
-          <Boton icono={Trash} titulo="Papelera (Supr)" disabled={sin} onClick={() => p.onAccion('papelera')} />
-          <Boton icono={Prohibit} titulo="Spam (Ctrl+Shift+J)" disabled={sin} onClick={() => p.onAccion('spam')} />
+          <Boton icono={Archive} titulo={t.barra.archivar} disabled={sin} onClick={() => p.onAccion('archivar')} />
+          <Boton icono={Trash} titulo={t.barra.papelera} disabled={sin} onClick={() => p.onAccion('papelera')} />
+          <Boton icono={Prohibit} titulo={t.barra.spam} disabled={sin} onClick={() => p.onAccion('spam')} />
         </div>
 
         <div className="capsula">
-          <Boton icono={FolderSimple} titulo="Mover a…" disabled={sin} caret onClick={() => p.onAccion('mover')} />
+          <Boton icono={FolderSimple} titulo={t.barra.moverA} disabled={sin} caret onClick={() => p.onAccion('mover')} />
         </div>
 
         <div className="capsula">
           <Boton
             icono={Flag}
-            titulo="Marcar (Ctrl+Shift+L)"
+            titulo={t.barra.marcar}
             disabled={sin}
             peso={p.marcado ? 'fill' : 'regular'}
             clase={p.marcado ? 'bandera' : ''}
@@ -151,7 +153,7 @@ export function Toolbar(p: Props) {
             <input
               ref={campo}
               value={p.busqueda}
-              placeholder="Buscar"
+              placeholder={t.barra.buscar}
               onChange={(e) => p.onBuscar(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
@@ -162,7 +164,7 @@ export function Toolbar(p: Props) {
             />
             <button
               className="buscador-cerrar"
-              title="Cerrar búsqueda"
+              title={t.barra.cerrarBusqueda}
               onClick={() => {
                 p.onBuscar('')
                 setBuscando(false)
@@ -173,7 +175,7 @@ export function Toolbar(p: Props) {
           </div>
         ) : (
           <div className="capsula">
-            <Boton icono={MagnifyingGlass} titulo="Buscar (Ctrl+F)" onClick={() => {
+            <Boton icono={MagnifyingGlass} titulo={t.barra.buscarAtajo} onClick={() => {
               setBuscando(true)
               requestAnimationFrame(() => campo.current?.focus())
             }} />

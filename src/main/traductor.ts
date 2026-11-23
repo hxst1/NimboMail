@@ -8,6 +8,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { t } from './idioma'
 
 const DIR_MODELO = join(homedir(), '.local', 'share', 'nimbomail', 'traduccion', 'en-es')
 const DIR_PAGINA = join(import.meta.dirname, '../../resources/traductor')
@@ -49,14 +50,14 @@ async function descargarModelo() {
     const ya = ultimo.get(r.fileType)
     if (!ya || num(r.version) > num(ya.version)) ultimo.set(r.fileType, r)
   }
-  if (ultimo.size !== 3) throw new Error('Mozilla no publica el modelo inglés → español completo')
+  if (ultimo.size !== 3) throw new Error(t().principal.traductor.modeloIncompleto)
   await mkdir(DIR_MODELO, { recursive: true })
   for (const r of ultimo.values()) {
     const resp = await fetch(base + r.attachment.location)
-    if (!resp.ok) throw new Error(`No se pudo descargar el modelo (${resp.status})`)
+    if (!resp.ok) throw new Error(t().principal.traductor.noDescargar(resp.status))
     const datos = Buffer.from(await resp.arrayBuffer())
     const suma = createHash('sha256').update(datos).digest('hex')
-    if (suma !== r.attachment.hash) throw new Error('El modelo descargado no coincide con su suma')
+    if (suma !== r.attachment.hash) throw new Error(t().principal.traductor.sumaNoCoincide)
     const destino = join(DIR_MODELO, ARCHIVOS[r.fileType])
     await writeFile(destino + '.tmp', datos)
     await rename(destino + '.tmp', destino)

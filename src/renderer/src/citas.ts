@@ -1,8 +1,9 @@
 // Pliega el texto citado de las respuestas (como Mail): queda dentro de un <details>
 // que se abre con «···». Funciona sin scripts, así que vale dentro del iframe aislado.
 import DOMPurify from 'dompurify'
+import { t } from '@/i18n'
 
-const RESUMEN = '<summary title="Mostrar el texto citado">···</summary>'
+const resumen = () => `<summary title="${t().lector.mostrarCita}">···</summary>`
 
 // Marcadores de cita de los clientes más habituales.
 const ELEMENTOS_CITA = [
@@ -31,7 +32,7 @@ export function plegarCitasHtml(html: string): string {
     if (!nodos.length) return
     const det = doc.createElement('details')
     det.className = 'tm-cita'
-    det.innerHTML = RESUMEN
+    det.innerHTML = resumen()
     nodos[0].parentNode?.insertBefore(det, nodos[0])
     for (const n of nodos) det.appendChild(n)
   }
@@ -138,5 +139,5 @@ export function textoAHtml(texto: string): { html: string; tieneCita: boolean } 
   // Sin texto propio (todo el mensaje es cita): se enseña tal cual, sin plegar.
   if (!propio.trim()) return { html: `<div class="tm-cita-texto">${enlazar(escapar(cita.replace(/^> ?/gm, '')))}</div>`, tieneCita: true }
   const citaHtml = enlazar(escapar(cita.replace(/^> ?/gm, '')))
-  return { html: `${html}<details class="tm-cita">${RESUMEN}<div class="tm-cita-texto">${citaHtml}</div></details>`, tieneCita: true }
+  return { html: `${html}<details class="tm-cita">${resumen()}<div class="tm-cita-texto">${citaHtml}</div></details>`, tieneCita: true }
 }

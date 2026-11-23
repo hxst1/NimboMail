@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { shell } from 'electron'
+import { estadoIdioma, t } from './idioma'
 
 export type IdOAuth = 'microsoft' | 'google'
 
@@ -54,21 +55,21 @@ async function pedirToken(p: Proveedor, cuerpo: Record<string, string>): Promise
     body: new URLSearchParams({ client_id: p.clientId, ...(p.clientSecret ? { client_secret: p.clientSecret } : {}), ...cuerpo }),
   })
   const d = (await r.json()) as { access_token?: string; refresh_token?: string; expires_in?: number; error_description?: string; error?: string }
-  if (!r.ok || !d.access_token) throw new Error(d.error_description || d.error || `El proveedor respondió ${r.status}`)
+  if (!r.ok || !d.access_token) throw new Error(d.error_description || d.error || t().principal.oauth.proveedorRespondio(r.status))
   return { acceso: d.access_token, renovacion: d.refresh_token, caduca: Date.now() + (d.expires_in ?? 3600) * 1000 }
 }
 
 /** Abre el navegador para entrar y devuelve los tokens (el de renovación se guarda en el llavero). */
 export function iniciarSesion(id: IdOAuth, pista?: string): Promise<Tokens> {
   const p = PROVEEDORES[id]
-  if (!p.clientId) return Promise.reject(new Error('Esta versión de NimboMail no tiene configurado el inicio de sesión con este proveedor'))
+  if (!p.clientId) return Promise.reject(new Error(t().principal.oauth.sinConfigurar))
   const verificador = base64url(randomBytes(32))
   const reto = base64url(createHash('sha256').update(verificador).digest())
   const estado = base64url(randomBytes(16))
 
   return new Promise((resolve, reject) => {
     let redireccion = ''
-    const fin = setTimeout(() => cerrar(new Error('Se agotó el tiempo para iniciar sesión')), 5 * 60_000)
+    const fin = setTimeout(() => cerrar(new Error(t().principal.oauth.tiempoAgotado)), 5 * 60_000)
     const servidor = createServer(async (req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost')
       if (url.pathname !== '/') return res.writeHead(404).end()
@@ -77,11 +78,11 @@ export function iniciarSesion(id: IdOAuth, pista?: string): Promise<Tokens> {
       const ok = !error && codigo && url.searchParams.get('state') === estado
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
       res.end(
-        `<!doctype html><meta charset="utf-8"><title>NimboMail</title><body style="font:16px system-ui;background:#141516;color:#e4e6e7;display:grid;place-items:center;height:90vh">` +
-          (ok ? 'Listo. Ya puedes volver a NimboMail.' : 'No se pudo iniciar sesión. Vuelve a NimboMail para intentarlo de nuevo.') +
+        `<!doctype html><html lang="${estadoIdioma().idioma}"><meta charset="utf-8"><title>NimboMail</title><body style="font:16px system-ui;background:#141516;color:#e4e6e7;display:grid;place-items:center;height:90vh">` +
+          (ok ? t().principal.oauth.listo : t().principal.oauth.fallo) +
           '</body>',
       )
-      if (!ok) return cerrar(new Error(error || 'Respuesta no válida del proveedor'))
+      if (!ok) return cerrar(new Error(error || t().principal.oauth.respuestaNoValida))
       try {
         cerrar(null, await pedirToken(p, { grant_type: 'authorization_code', code: codigo!, redirect_uri: redireccion, code_verifier: verificador }))
       } catch (e) {

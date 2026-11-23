@@ -1,0 +1,22 @@
+// Barra de herramientas de la ventana principal (los títulos son las descripciones al pasar el ratón).
+export const barra = {
+  cerrar: 'Close (NimboMail stays in the tray) · Ctrl+W',
+  mostrarLateral: 'Show sidebar',
+  soloNoLeidos: 'Unread only',
+  listaAncha: 'Wide list',
+  columnas: 'List and message in columns',
+  buscandoCorreo: 'Checking for new mail…',
+  obtenerCorreo: 'Get new mail (F5)',
+  redactar: 'New message (Ctrl+N)',
+  responder: 'Reply (Ctrl+R)',
+  responderTodos: 'Reply all (Ctrl+Shift+R)',
+  reenviar: 'Forward (Ctrl+Shift+F)',
+  archivar: 'Archive (Ctrl+Shift+A)',
+  papelera: 'Trash (Del)',
+  spam: 'Spam (Ctrl+Shift+J)',
+  moverA: 'Move to…',
+  marcar: 'Flag (Ctrl+Shift+L)',
+  buscar: 'Search',
+  buscarAtajo: 'Search (Ctrl+F)',
+  cerrarBusqueda: 'Close search',
+}

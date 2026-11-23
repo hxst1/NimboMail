@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url'
 import { Servicio } from './servicio'
 import { rutaAdjunto } from './adjuntos'
 import { migrarDeTuxMail } from './migracion'
+import { estadoIdioma, idiomas, iniciarIdioma, ponerIdioma, t } from './idioma'
 import { modeloListo, prepararTraductor, servirTraductor } from './traductor'
 
 // Caché de compilación de V8 para el código del principal: arranques más rápidos.
@@ -16,8 +17,6 @@ enableCompileCache?.()
 process.env.CHROME_DESKTOP = 'nimbomail.desktop'
 app.setName('nimbomail')
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
-// La interfaz es en español: fechas dd/mm/aaaa y horas de 24 h en los campos de fecha y hora.
-app.commandLine.appendSwitch('lang', 'es-ES')
 
 const demo = process.argv.includes('--demo')
 // CORREO_CAPTURA=/ruta.png: renderiza oculta, guarda una captura y sale (para revisar el diseño).
@@ -31,10 +30,15 @@ protocol.registerSchemesAsPrivileged([
 
 // Antes se llamaba TuxMail: la primera vez se traen sus datos (antes de crear el candado de instancia única).
 if (!demo && !captura && !migrarDeTuxMail()) {
-  dialog.showErrorBox('Cierra TuxMail', 'TuxMail ahora se llama NimboMail. Sal de TuxMail del todo (Ctrl+Q o desde la bandeja) y vuelve a abrir NimboMail: tus cuentas y tu correo se pasarán solos.')
+  dialog.showErrorBox(t().principal.migracion.titulo, t().principal.migracion.cuerpo)
   app.exit(1)
   process.exit(1)
 }
+
+// Idioma (preferencia de Ajustes, o el del sistema). Chromium lo usa en los campos de fecha y hora,
+// así que se fija al arrancar: si se cambia en marcha, esos campos lo cogen al volver a abrir la app.
+iniciarIdioma(app.getPath('userData'))
+app.commandLine.appendSwitch('lang', estadoIdioma().locale)
 
 // Una sola NimboMail: si se vuelve a lanzar, se trae al frente la que ya está abierta.
 if (!captura && !app.requestSingleInstanceLock()) {
@@ -126,7 +130,7 @@ const API = {
   actualizarCalendarios: () => servicio.calendario.actualizar(),
   elegirArchivos: async () => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
-    const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], title: 'Adjuntar archivos' })
+    const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], title: t().principal.adjuntarArchivos })
     return r.canceled ? [] : servicio.archivosDeUris(r.filePaths.map((p) => pathToFileURL(p).toString()))
   },
   contactos: (q: string) => servicio.contactos(q),
@@ -142,6 +146,7 @@ const API = {
     saliendo = true
     app.quit()
   },
+  ponerIdioma: (p: Parameters<typeof ponerIdioma>[0]) => ponerIdioma(p),
   abrirEnlace: (url: string) => {
     if (typeof url === 'string' && /^(https?|mailto):/.test(url)) shell.openExternal(url)
   },
@@ -198,7 +203,7 @@ function crearVentana(): BrowserWindow {
             const boton = document.querySelector('.aviso-barra.traducir button')
             if (!boton) return 'sin barra de traducir (¿no lo detecta como inglés?)'
             const t0 = performance.now()
-            if (boton.textContent === 'Traducir') boton.click() // si ya estaba traducido, se lee tal cual
+            if (/^(Traducir|Translate)$/.test(boton.textContent)) boton.click() // si ya estaba traducido, se lee tal cual
             for (;;) {
               await new Promise((r) => setTimeout(r, 100))
               const barra = document.querySelector('.aviso-barra.traducir span')?.textContent ?? ''
@@ -281,8 +286,8 @@ function crearVentana(): BrowserWindow {
       }, Number(process.env.CORREO_ESPERA ?? 1500))
     })
   } else {
-    // Con --oculto (arranque con la sesión) se queda solo en la bandeja.
-    win.once('ready-to-show', () => !process.argv.includes('--oculto') && win.show())
+    // Con --hidden (o --oculto, el nombre antiguo; arranque con la sesión) se queda solo en la bandeja.
+    win.once('ready-to-show', () => !process.argv.some((a) => a === '--hidden' || a === '--oculto') && win.show())
     // Cerrar la ventana no cierra NimboMail: sigue en la bandeja para el correo nuevo y los avisos.
     win.on('close', (e) => {
       if (saliendo || !bandeja) return
@@ -320,6 +325,19 @@ ipcMain.handle('nimbomail', async (_e, metodo: keyof typeof API, ...args: unknow
 
 const aTodas = (canal: string, ...args: unknown[]) =>
   BrowserWindow.getAllWindows().forEach((w) => w.webContents.send(canal, ...args))
+
+// El preload pide el idioma de forma síncrona para que la interfaz salga ya en su idioma.
+ipcMain.on('nimbomail:idioma', (e) => {
+  e.returnValue = estadoIdioma()
+})
+idiomas.on('cambio', (estado) => {
+  aTodas('nimbomail:idioma', estado)
+  // Los nombres de las carpetas especiales y de «Mis eventos» se traducen al leerlos: que se vuelvan a pedir.
+  aTodas('nimbomail:cambios')
+  aTodas('nimbomail:calendario')
+  menuBandeja()
+  actualizarBandeja()
+})
 servicio.on('cambios', () => aTodas('nimbomail:cambios'))
 servicio.on('parche', (p: unknown) => aTodas('nimbomail:parche', p))
 servicio.on('calendario', () => aTodas('nimbomail:calendario'))
@@ -372,25 +390,7 @@ function crearBandeja() {
     return
   }
   bandeja.setToolTip('NimboMail')
-  const accion = (a: string) => {
-    mostrar()
-    ventana()?.webContents.send('nimbomail:accion', a)
-  }
-  bandeja.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Abrir NimboMail', click: () => mostrar() },
-      { label: 'Obtener correo nuevo', click: () => servicio.sincronizar().catch(() => {}) },
-      { label: 'Mensaje nuevo', click: () => accion('redactar') },
-      { type: 'separator' },
-      {
-        label: 'Salir de NimboMail',
-        click: () => {
-          saliendo = true
-          app.quit()
-        },
-      },
-    ]),
-  )
+  menuBandeja()
   // Clic: abre la ventana, o la oculta si ya está delante.
   bandeja.on('click', () => {
     const w = ventana()
@@ -400,6 +400,31 @@ function crearBandeja() {
   actualizarBandeja()
 }
 
+/** El menú del icono (se rehace al cambiar de idioma). */
+function menuBandeja() {
+  if (!bandeja) return
+  const tb = t().principal.bandeja
+  const accion = (a: string) => {
+    mostrar()
+    ventana()?.webContents.send('nimbomail:accion', a)
+  }
+  bandeja.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: tb.abrir, click: () => mostrar() },
+      { label: tb.obtenerCorreo, click: () => servicio.sincronizar().catch(() => {}) },
+      { label: tb.mensajeNuevo, click: () => accion('redactar') },
+      { type: 'separator' },
+      {
+        label: tb.salir,
+        click: () => {
+          saliendo = true
+          app.quit()
+        },
+      },
+    ]),
+  )
+}
+
 // El número de no leídos, al pasar el ratón por el icono.
 let avisoBandeja: NodeJS.Timeout | null = null
 function actualizarBandeja() {
@@ -407,7 +432,7 @@ function actualizarBandeja() {
   avisoBandeja = setTimeout(() => {
     avisoBandeja = null
     const n = servicio.contadores()['todas:inbox'] ?? 0
-    bandeja?.setToolTip(n ? `NimboMail · ${n} sin leer` : 'NimboMail')
+    bandeja?.setToolTip(n ? t().principal.bandeja.sinLeer(n) : 'NimboMail')
   }, 500)
 }
 servicio.on('cambios', actualizarBandeja)
@@ -419,8 +444,8 @@ function avisarBandeja() {
   if (existsSync(marca) || !Notification.isSupported()) return
   writeFileSync(marca, '')
   new Notification({
-    title: 'NimboMail sigue en la bandeja',
-    body: 'Para que te lleguen el correo nuevo y los avisos. Para salir del todo: clic derecho en el icono → Salir, o Ctrl+Q.',
+    title: t().principal.bandeja.sigueTitulo,
+    body: t().principal.bandeja.sigueCuerpo,
     icon: ICONO,
   }).show()
 }

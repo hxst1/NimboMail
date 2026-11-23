@@ -3,7 +3,8 @@ import { EventEmitter } from 'node:events'
 import { ImapFlow, type FetchMessageObject, type ListResponse } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import type { Cuerpo, RolCarpeta } from '@shared/tipos'
-import { credencialesImap, opcionesTls, type ConfigCuenta } from './cuentas'
+import { credencialesImap, opcionesTls, SinClave, type ConfigCuenta } from './cuentas'
+import { t } from './idioma'
 import { idMensaje, type Db, type NuevoMensaje } from './db'
 import { contarAdjuntos, decodificarParte, parteTexto, vistaPrevia, type NodoEstructura } from './texto'
 import { apuntarAdjuntos, guardarAdjuntos, type AdjuntoPendiente } from './adjuntos'
@@ -21,15 +22,8 @@ const DIA = 86_400_000
 // Carpetas que se precargan, por orden (spam y papelera, no).
 const PRECARGA: RolCarpeta[] = ['inbox', 'sent', 'drafts', 'archive', 'normal']
 
-const NOMBRES: Partial<Record<RolCarpeta, string>> = {
-  inbox: 'Bandeja de entrada',
-  drafts: 'Borradores',
-  sent: 'Enviados',
-  junk: 'Spam',
-  trash: 'Papelera',
-  archive: 'Archivo',
-  all: 'Todo el correo',
-}
+// Nombre de las carpetas especiales: el del idioma de la app (la interfaz lo vuelve a poner al leerlas).
+const nombreRol = (rol: RolCarpeta): string | undefined => (rol === 'normal' ? undefined : t().comun.roles[rol])
 
 function rolDe(m: ListResponse, gmail: boolean): RolCarpeta | null {
   const su = m.specialUse
@@ -48,7 +42,7 @@ function rolDe(m: ListResponse, gmail: boolean): RolCarpeta | null {
 
 export type EventoMotor =
   | { tipo: 'cambios' }
-  | { tipo: 'estado'; estado: 'conectando' | 'listo' | 'error'; detalle?: string }
+  | { tipo: 'estado'; estado: 'conectando' | 'listo' | 'error'; detalle?: string; sinClave?: boolean }
   | { tipo: 'nuevos'; ids: string[] } // mensajes nuevos en INBOX (para avisos y reglas)
   | { tipo: 'invitacion'; id: string; ics: string } // un correo con una invitación de calendario (iMIP)
 
@@ -116,7 +110,7 @@ export class Motor extends EventEmitter {
         CADA_CUANTO,
       )
     } catch (err) {
-      this.emitir({ tipo: 'estado', estado: 'error', detalle: (err as Error).message })
+      this.emitir({ tipo: 'estado', estado: 'error', detalle: (err as Error).message, sinClave: err instanceof SinClave })
       this.reconectar()
     }
   }
@@ -180,7 +174,7 @@ export class Motor extends EventEmitter {
       .map(({ m, rol }) => ({
         ruta: m.path,
         rol,
-        nombre: (rol !== 'normal' && NOMBRES[rol]) || m.name.replace(/^\[Gmail\]\/?/, ''),
+        nombre: nombreRol(rol) || m.name.replace(/^\[Gmail\]\/?/, ''),
       }))
     this.db.guardarCarpetas(this.cuenta.id, carpetas)
     this.emitir({ tipo: 'cambios' })
@@ -426,7 +420,7 @@ export class Motor extends EventEmitter {
         this.colaBaja.push(id)
         // Los vecinos de selecciones viejas ya no interesan: fuera los más antiguos.
         for (const viejo of this.colaBaja.splice(0, Math.max(0, this.colaBaja.length - 60))) {
-          this.esperando.get(viejo)?.forEach((e) => e.ko(new Error('Precarga descartada')))
+          this.esperando.get(viejo)?.forEach((e) => e.ko(new Error(t().principal.mensajes.precargaDescartada)))
           this.esperando.delete(viejo)
         }
       }
@@ -477,13 +471,13 @@ export class Motor extends EventEmitter {
   /** Baja, procesa y guarda el cuerpo de un mensaje. */
   private async descargarCuerpo(cli: ImapFlow, id: string, imagenes: boolean): Promise<Cuerpo> {
     const u = this.db.ubicacion(id)
-    if (!u) throw new Error('Mensaje no disponible')
+    if (!u) throw new Error(t().principal.mensajes.noDisponible)
     const lock = await cli.getMailboxLock(u.carpeta)
     let fuente: Buffer | undefined
     let grande: { estructura: NodoEstructura; partes: Record<string, Buffer>; textos: Record<string, string> } | undefined
     try {
       const info = await cli.fetchOne(String(u.uid), { uid: true, size: true, bodyStructure: true }, { uid: true })
-      if (!info) throw new Error('El mensaje ya no está en el servidor')
+      if (!info) throw new Error(t().principal.mensajes.yaNoEsta)
       if ((info.size ?? 0) <= GRANDE || !info.bodyStructure) {
         const m = await cli.fetchOne(String(u.uid), { uid: true, source: true }, { uid: true })
         fuente = m ? m.source : undefined
@@ -496,7 +490,7 @@ export class Motor extends EventEmitter {
     let cuerpo: Cuerpo
     if (fuente) cuerpo = await this.cuerpoDeFuente(id, fuente)
     else if (grande) cuerpo = await this.cuerpoDePartes(id, grande)
-    else throw new Error('No se pudo descargar el mensaje')
+    else throw new Error(t().principal.mensajes.noDescargar)
     if (cuerpo.html) {
       const r = this.remotas.reescribir(cuerpo.html)
       cuerpo.html = r.html
@@ -573,12 +567,12 @@ export class Motor extends EventEmitter {
   /** Un adjunto de un correo grande, cuando se pide (por la lectora). */
   async descargarParte(id: string, parte: string): Promise<Buffer> {
     const u = this.db.ubicacion(id)
-    if (!u) throw new Error('Mensaje no disponible')
+    if (!u) throw new Error(t().principal.mensajes.noDisponible)
     const cli = await this.obtenerLectora()
     const lock = await cli.getMailboxLock(u.carpeta)
     try {
       const d = await cli.download(String(u.uid), parte, { uid: true })
-      if (!('content' in d) || !d.content) throw new Error('Adjunto no encontrado')
+      if (!('content' in d) || !d.content) throw new Error(t().principal.mensajes.adjuntoNoEncontrado)
       return await leerFlujo(d.content)
     } finally {
       lock.release()
@@ -691,12 +685,12 @@ export class Motor extends EventEmitter {
   /** El mensaje entero tal cual (para volver a abrir un borrador). */
   async fuente(id: string): Promise<Buffer> {
     const u = this.db.ubicacion(id)
-    if (!u) throw new Error('Mensaje no disponible')
+    if (!u) throw new Error(t().principal.mensajes.noDisponible)
     const cli = await this.obtenerLectora()
     const lock = await cli.getMailboxLock(u.carpeta)
     try {
       const m = await cli.fetchOne(String(u.uid), { uid: true, source: true }, { uid: true })
-      if (!m || !m.source) throw new Error('El mensaje ya no está en el servidor')
+      if (!m || !m.source) throw new Error(t().principal.mensajes.yaNoEsta)
       return m.source
     } finally {
       lock.release()
@@ -735,11 +729,11 @@ export class Motor extends EventEmitter {
 
   /** Mueve en el servidor y devuelve el UID nuevo (UIDPLUS) para seguir el mensaje. */
   async mover(origen: string, uid: number, destino: string): Promise<number | null> {
-    if (!this.cli) throw new Error('Sin conexión')
+    if (!this.cli) throw new Error(t().principal.mensajes.sinConexion)
     const lock = await this.cli.getMailboxLock(origen)
     try {
       const r = await this.cli.messageMove(String(uid), destino, { uid: true })
-      if (!r) throw new Error('El servidor no movió el mensaje')
+      if (!r) throw new Error(t().principal.mensajes.servidorNoMovio)
       return r.uidMap?.get(uid) ?? null
     } finally {
       lock.release()
@@ -747,19 +741,19 @@ export class Motor extends EventEmitter {
   }
 
   async crearCarpeta(ruta: string) {
-    if (!this.cli) throw new Error('Sin conexión')
+    if (!this.cli) throw new Error(t().principal.mensajes.sinConexion)
     await this.cli.mailboxCreate(ruta)
     await this.sincronizarTodo()
   }
 
   async renombrarCarpeta(ruta: string, nueva: string) {
-    if (!this.cli) throw new Error('Sin conexión')
+    if (!this.cli) throw new Error(t().principal.mensajes.sinConexion)
     await this.cli.mailboxRename(ruta, nueva)
     await this.sincronizarTodo()
   }
 
   async borrarCarpeta(ruta: string) {
-    if (!this.cli) throw new Error('Sin conexión')
+    if (!this.cli) throw new Error(t().principal.mensajes.sinConexion)
     await this.cli.mailboxDelete(ruta)
     await this.sincronizarTodo()
   }

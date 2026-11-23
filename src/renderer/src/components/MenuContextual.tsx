@@ -4,6 +4,7 @@ import type { Instancia } from '@shared/tipos'
 import type { NuevoEvento } from '@/components/EditorEvento'
 import { api } from '@/estado'
 import { traducirTexto } from '@/traductor'
+import { useT } from '@/i18n'
 
 export type ElementoMenu =
   | '-'
@@ -130,6 +131,7 @@ function useCierre(ref: React.RefObject<HTMLDivElement | null>, onCerrar: () => 
 
 /** Burbuja con la traducción de una selección, con «Copiar». */
 export function BurbujaTraduccion({ x, y, texto, onCerrar }: { x: number; y: number; texto: string; onCerrar: () => void }) {
+  const t = useT()
   const { ref, estilo } = usePosicion(x, y)
   const [traduccion, setTraduccion] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -138,7 +140,7 @@ export function BurbujaTraduccion({ x, y, texto, onCerrar }: { x: number; y: num
   useEffect(() => {
     let vivo = true
     traducirTexto(texto).then(
-      (t) => vivo && setTraduccion(t),
+      (r) => vivo && setTraduccion(r),
       (e: Error) => vivo && setError(e.message),
     )
     return () => {
@@ -148,10 +150,10 @@ export function BurbujaTraduccion({ x, y, texto, onCerrar }: { x: number; y: num
   return (
     <div ref={ref} className="burbuja-traduccion" style={estilo}>
       <div className="burbuja-cabeza">
-        <Translate size={14} /> Inglés → español
+        <Translate size={14} /> {t.menu.burbuja.idiomas}
       </div>
       <div className={`burbuja-texto${traduccion ? '' : ' cargando'}`}>
-        {error ? `No se pudo traducir: ${error}` : (traduccion ?? 'Traduciendo…')}
+        {error ? t.menu.burbuja.noSePudo(error) : (traduccion ?? t.menu.burbuja.traduciendo)}
       </div>
       {traduccion && (
         <button
@@ -162,7 +164,7 @@ export function BurbujaTraduccion({ x, y, texto, onCerrar }: { x: number; y: num
             setTimeout(onCerrar, 700)
           }}
         >
-          <Copy size={13} /> {copiado ? 'Copiado' : 'Copiar'}
+          <Copy size={13} /> {copiado ? t.menu.burbuja.copiado : t.menu.burbuja.copiar}
         </button>
       )}
     </div>

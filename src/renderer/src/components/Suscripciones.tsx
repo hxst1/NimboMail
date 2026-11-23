@@ -3,28 +3,30 @@ import {
   Archive, CaretRight, Check, CheckCircle, DotsThree, EnvelopeSimple, Globe, Lightning, MagnifyingGlass, Prohibit, Trash, X,
 } from '@phosphor-icons/react'
 import type { Suscripcion } from '@shared/tipos'
+import type { Textos } from '@shared/i18n'
 import { api } from '@/estado'
+import { locale, useT } from '@/i18n'
 import { iniciales } from '@/formato'
 import { useInterfaz } from '@/components/MenuContextual'
 import { Desplegable } from '@/components/Desplegable'
 
 type Orden = 'total' | 'recientes' | 'sinLeer'
 
-const METODOS: Record<Suscripcion['metodo'], { texto: string; ayuda: string }> = {
-  'un-clic': { texto: 'Baja de un clic', ayuda: 'Se da de baja al momento, sin abrir ninguna web (RFC 8058).' },
-  correo: { texto: 'Baja por correo', ayuda: 'NimboMail manda el correo de baja desde tu cuenta.' },
-  web: { texto: 'Baja en su web', ayuda: 'Este remitente solo ofrece una página: se abrirá en el navegador.' },
-}
+const metodos = (t: Textos): Record<Suscripcion['metodo'], { texto: string; ayuda: string }> => ({
+  'un-clic': t.suscripciones.metodos.unClic,
+  correo: t.suscripciones.metodos.correo,
+  web: t.suscripciones.metodos.web,
+})
 
-function hace(ms: number): string {
+function hace(ms: number, t: Textos): string {
+  const h = t.suscripciones.hace
   const dias = Math.floor((Date.now() - ms) / 86_400_000)
-  if (dias <= 0) return 'hoy'
-  if (dias === 1) return 'ayer'
-  if (dias < 30) return `hace ${dias} días`
+  if (dias <= 0) return h.hoy
+  if (dias === 1) return h.ayer
+  if (dias < 30) return h.dias(dias)
   const meses = Math.floor(dias / 30)
-  if (meses < 12) return `hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`
-  const anos = Math.floor(meses / 12)
-  return `hace ${anos} ${anos === 1 ? 'año' : 'años'}`
+  if (meses < 12) return h.meses(meses)
+  return h.anos(Math.floor(meses / 12))
 }
 
 /**
@@ -57,9 +59,9 @@ function unirCampanas(lista: Suscripcion[]): Tipo[] {
 }
 
 /** «beacon-split.hxst1.github.com» → la lista se enseña si no es la propia dirección. */
-const nombreLista = (t: Tipo) => {
-  if (t.miembros.length > 1) return `${t.miembros.length} campañas del mismo boletín`
-  return t.clave.includes('@') ? null : `Lista: ${t.clave}`
+const nombreLista = (tipo: Tipo, t: Textos) => {
+  if (tipo.miembros.length > 1) return t.suscripciones.campanas(tipo.miembros.length)
+  return tipo.clave.includes('@') ? null : t.suscripciones.lista(tipo.clave)
 }
 
 // ------------------------------------------------------------ agrupar por empresa
@@ -130,6 +132,8 @@ function Casilla({ marcada, intermedia, onCambiar, titulo }: { marcada: boolean;
 
 export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void; onVerCorreos: (direccion: string) => void }) {
   const ui = useInterfaz()
+  const t = useT()
+  const ts = t.suscripciones
   const [lista, setLista] = useState<Suscripcion[]>([])
   const [cargado, setCargado] = useState(false)
   const [busqueda, setBusqueda] = useState('')
@@ -180,28 +184,27 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
   }
 
   // Se da de baja con el enlace de la campaña más reciente; las demás del mismo boletín solo se apuntan.
-  const darDeBaja = (t: Tipo, silencioso = false) =>
-    conOcupado(claveTipo(t), async () => {
-      const s = t
+  const darDeBaja = (tipo: Tipo, silencioso = false) =>
+    conOcupado(claveTipo(tipo), async () => {
+      const s = tipo
       try {
-        const reciente = t.miembros.find((m) => m.ultimo === t.ultimo) ?? t.miembros[0]
+        const reciente = tipo.miembros.find((m) => m.ultimo === tipo.ultimo) ?? tipo.miembros[0]
         const m = await api.darseDeBaja(reciente.cuenta, reciente.clave)
-        for (const otro of t.miembros) if (otro !== reciente) await api.apuntarBaja(otro.cuenta, otro.clave, m)
+        for (const otro of tipo.miembros) if (otro !== reciente) await api.apuntarBaja(otro.cuenta, otro.clave, m)
         if (!silencioso)
           ui.avisar(
-            m === 'web' ? `Se ha abierto la página de baja de ${s.nombre || s.direccion}` : `Baja pedida a ${s.nombre || s.direccion}${m === 'un-clic' ? '' : ' (por correo)'}`,
+            m === 'web' ? ts.paginaAbierta(s.nombre || s.direccion) : ts.bajaPedida(s.nombre || s.direccion, m !== 'un-clic'),
           )
       } catch (e) {
-        ui.avisar(`No se pudo con ${s.nombre || s.direccion}: ${(e as Error).message}`)
+        ui.avisar(ts.errorBaja(s.nombre || s.direccion, (e as Error).message))
       }
     })
 
   const limpiar = (tipos: Tipo[], destino: 'trash' | 'archive' | 'junk') =>
     conOcupado(tipos.map(claveTipo).join(','), async () => {
       let n = 0
-      for (const s of tipos.flatMap((t) => t.miembros)) n += await api.limpiarSuscripcion(s.cuenta, s.clave, destino)
-      const donde = destino === 'trash' ? 'a la papelera' : destino === 'archive' ? 'al archivo' : 'a spam'
-      ui.avisar(`${n} ${n === 1 ? 'correo movido' : 'correos movidos'} ${donde} · Ctrl+Z para deshacer`)
+      for (const s of tipos.flatMap((tipo) => tipo.miembros)) n += await api.limpiarSuscripcion(s.cuenta, s.clave, destino)
+      ui.avisar(ts.movidos(n, destino))
     })
 
   const menuSub = (s: Tipo, x: number, y: number) =>
@@ -209,11 +212,11 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
       x,
       y,
       elementos: [
-        { etiqueta: 'Ver sus correos', icono: <MagnifyingGlass size={15} />, accion: () => onVerCorreos(s.direccion) },
+        { etiqueta: ts.menu.verCorreos, icono: <MagnifyingGlass size={15} />, accion: () => onVerCorreos(s.direccion) },
         '-',
-        { etiqueta: `Mover sus ${s.aLaVista} correos a la papelera`, icono: <Trash size={15} />, desactivado: !s.aLaVista, accion: () => limpiar([s], 'trash') },
-        { etiqueta: `Archivar sus ${s.aLaVista} correos`, icono: <Archive size={15} />, desactivado: !s.aLaVista, accion: () => limpiar([s], 'archive') },
-        { etiqueta: 'Mandar todo a spam', icono: <Prohibit size={15} />, peligro: true, desactivado: !s.aLaVista, accion: () => limpiar([s], 'junk') },
+        { etiqueta: ts.menu.aPapelera(s.aLaVista), icono: <Trash size={15} />, desactivado: !s.aLaVista, accion: () => limpiar([s], 'trash') },
+        { etiqueta: ts.menu.archivar(s.aLaVista), icono: <Archive size={15} />, desactivado: !s.aLaVista, accion: () => limpiar([s], 'archive') },
+        { etiqueta: ts.menu.aSpam, icono: <Prohibit size={15} />, peligro: true, desactivado: !s.aLaVista, accion: () => limpiar([s], 'junk') },
       ],
     })
 
@@ -239,7 +242,7 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
   const pendientesElegidas = elegidasVistas.filter((s) => !s.bajaFecha)
   const bajaElegidas = async () => {
     for (const s of pendientesElegidas) await darDeBaja(s, true)
-    ui.avisar(`Baja pedida a ${pendientesElegidas.length} ${pendientesElegidas.length === 1 ? 'tipo de correo' : 'tipos de correo'}`)
+    ui.avisar(ts.bajaElegidas(pendientesElegidas.length))
     setElegidas(new Set())
   }
   const totalALaVista = lista.reduce((n, s) => n + s.aLaVista, 0)
@@ -247,8 +250,8 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
   /** Una suscripción concreta (un tipo de correo): quién es, qué manda y cómo darse de baja. */
   const filaSub = (s: Tipo, dentro: boolean) => {
     const k = claveTipo(s)
-    const lista = nombreLista(s)
-    const m = METODOS[s.metodo]
+    const lista = nombreLista(s, t)
+    const m = metodos(t)[s.metodo]
     return (
       <div
         key={k}
@@ -258,7 +261,7 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
           menuSub(s, e.clientX, e.clientY)
         }}
       >
-        <Casilla marcada={elegidas.has(k)} onCambiar={(v) => alternar([k], v)} titulo="Elegir este tipo de correo" />
+        <Casilla marcada={elegidas.has(k)} onCambiar={(v) => alternar([k], v)} titulo={ts.elegirTipo} />
         {!dentro && <div className="avatar">{iniciales(s.nombre || s.direccion)}</div>}
         <div className="su-datos">
           <div className="su-nombre">
@@ -270,11 +273,11 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
             {lista && <span className="su-lista-id"> · {lista}</span>}
           </div>
           <div className="su-asunto" title={s.asunto}>
-            Último: «{s.asunto || '(sin asunto)'}»
+            {ts.ultimo(s.asunto || ts.sinAsunto)}
           </div>
           <div className="su-cifras">
-            <b>{s.total}</b> {s.total === 1 ? 'correo' : 'correos'}
-            {s.sinLeer > 0 && <> · {Math.round((s.sinLeer / s.total) * 100)} % sin leer</>} · último {hace(s.ultima)}
+            <b>{s.total}</b> {ts.correos(s.total)}
+            {s.sinLeer > 0 && <> · {ts.sinLeer(Math.round((s.sinLeer / s.total) * 100))}</>} · {ts.ultimoHace(hace(s.ultima, t))}
           </div>
         </div>
         <span className={`su-metodo ${s.metodo}`} title={m.ayuda}>
@@ -282,20 +285,20 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
           {m.texto}
         </span>
         {s.bajaFecha ? (
-          <span className="su-hecha" title={`Pedida el ${new Date(s.bajaFecha).toLocaleDateString('es-ES')}`}>
-            <CheckCircle size={15} weight="fill" /> Baja pedida
+          <span className="su-hecha" title={ts.pedidaEl(new Date(s.bajaFecha).toLocaleDateString(locale()))}>
+            <CheckCircle size={15} weight="fill" /> {ts.bajaPedidaChip}
           </span>
         ) : (
           <button className="su-baja destacado" disabled={ocupado.has(k)} onClick={() => darDeBaja(s)}>
-            {ocupado.has(k) ? 'Un momento…' : 'Darse de baja'}
+            {ocupado.has(k) ? ts.unMomento : ts.darseDeBaja}
           </button>
         )}
         {s.bajaFecha && s.aLaVista > 0 && (
-          <button className="su-limpiar" onClick={() => limpiar([s], 'trash')} title="Mover sus correos a la papelera">
+          <button className="su-limpiar" onClick={() => limpiar([s], 'trash')} title={ts.moverAPapelera}>
             <Trash size={14} /> {s.aLaVista}
           </button>
         )}
-        <button className="cal-boton" title="Más" onClick={(e) => menuSub(s, e.clientX, e.clientY)}>
+        <button className="cal-boton" title={ts.mas} onClick={(e) => menuSub(s, e.clientX, e.clientY)}>
           <DotsThree size={18} weight="bold" />
         </button>
       </div>
@@ -306,31 +309,31 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
     <section className="suscripciones">
       <header className="su-cabeza">
         <div>
-          <h1>Suscripciones</h1>
+          <h1>{t.comun.buzones.suscripciones}</h1>
           <div className="su-sub">
             {cargado
-              ? `${grupos.length} ${grupos.length === 1 ? 'remitente' : 'remitentes'} · ${todas.length} tipos de correo · ${totalALaVista} correos suyos a la vista`
-              : 'Buscando boletines…'}
+              ? ts.resumen(grupos.length, todas.length, totalALaVista)
+              : ts.buscando}
           </div>
         </div>
         <div className="su-buscar">
           <MagnifyingGlass size={14} />
-          <input placeholder="Buscar remitente o asunto" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+          <input placeholder={ts.buscar} value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
         </div>
         <Desplegable<Orden>
           valor={orden}
           onCambiar={setOrden}
-          titulo="Ordenar"
+          titulo={ts.ordenar}
           opciones={[
-            { valor: 'total', texto: 'Más correos' },
-            { valor: 'recientes', texto: 'Más recientes' },
-            { valor: 'sinLeer', texto: 'Más sin leer' },
+            { valor: 'total', texto: ts.orden.total },
+            { valor: 'recientes', texto: ts.orden.recientes },
+            { valor: 'sinLeer', texto: ts.orden.sinLeer },
           ]}
         />
         <button type="button" className={`su-ficha${ocultarDadas ? ' activa' : ''}`} aria-pressed={ocultarDadas} onClick={() => setOcultarDadas((v) => !v)}>
-          {ocultarDadas && <Check size={12} weight="bold" />} Ocultar las dadas de baja
+          {ocultarDadas && <Check size={12} weight="bold" />} {ts.ocultarDadas}
         </button>
-        <button className="cal-boton" title="Volver al correo (Esc)" onClick={onCerrar}>
+        <button className="cal-boton" title={ts.volver} onClick={onCerrar}>
           <X size={17} />
         </button>
       </header>
@@ -338,18 +341,18 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
       {elegidasVistas.length > 0 && (
         <div className="su-barra-seleccion">
           <span>
-            {elegidasVistas.length} {elegidasVistas.length === 1 ? 'tipo de correo elegido' : 'tipos de correo elegidos'}
-            {pendientesElegidas.length < elegidasVistas.length && ` (${elegidasVistas.length - pendientesElegidas.length} ya dados de baja)`}
+            {ts.elegidos(elegidasVistas.length)}
+            {pendientesElegidas.length < elegidasVistas.length && ` ${ts.yaDados(elegidasVistas.length - pendientesElegidas.length)}`}
           </span>
           {pendientesElegidas.length > 0 && (
             <button className="destacado" onClick={bajaElegidas}>
-              Darse de baja de {pendientesElegidas.length === 1 ? 'este' : `estos ${pendientesElegidas.length}`}
+              {ts.bajaDeEstos(pendientesElegidas.length)}
             </button>
           )}
           <button onClick={async () => (await limpiar(elegidasVistas, 'trash'), setElegidas(new Set()))}>
-            <Trash size={14} /> Sus correos a la papelera
+            <Trash size={14} /> {ts.susCorreosAPapelera}
           </button>
-          <button onClick={() => setElegidas(new Set())}>Quitar selección</button>
+          <button onClick={() => setElegidas(new Set())}>{ts.quitarSeleccion}</button>
         </div>
       )}
 
@@ -357,8 +360,8 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
         {cargado && !grupos.length && (
           <div className="su-vacio">
             {lista.length
-              ? 'Nada con ese filtro.'
-              : 'Todavía no hay boletines detectados. NimboMail lee la cabecera de baja de cada correo al sincronizar: si acabas de actualizar, puede tardar un poco.'}
+              ? ts.nadaConFiltro
+              : ts.vacio}
           </div>
         )}
         {grupos.map((g) => {
@@ -374,28 +377,28 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
                   marcada={marcadas === claves.length}
                   intermedia={marcadas > 0}
                   onCambiar={(v) => alternar(claves, v)}
-                  titulo="Elegir todos los tipos de correo de este remitente"
+                  titulo={ts.elegirGrupo}
                 />
                 <div className="avatar">{iniciales(g.nombre)}</div>
                 <div className="su-datos">
                   <div className="su-nombre">{g.nombre}</div>
                   <div className="su-cifras">
-                    <b>{g.subs.length}</b> tipos de correo · <b>{g.total}</b> correos
-                    {g.sinLeer > 0 && <> · {Math.round((g.sinLeer / g.total) * 100)} % sin leer</>} · último {hace(g.ultima)}
+                    <b>{g.subs.length}</b> {ts.tiposCorreo(g.subs.length)} · <b>{g.total}</b> {ts.correos(g.total)}
+                    {g.sinLeer > 0 && <> · {ts.sinLeer(Math.round((g.sinLeer / g.total) * 100))}</>} · {ts.ultimoHace(hace(g.ultima, t))}
                   </div>
                 </div>
                 {dadas > 0 && (
                   <span className="su-hecha">
-                    <CheckCircle size={15} weight="fill" /> {dadas === g.subs.length ? 'Todo dado de baja' : `${dadas} de ${g.subs.length} dados de baja`}
+                    <CheckCircle size={15} weight="fill" /> {dadas === g.subs.length ? ts.todoDado : ts.dadosDe(dadas, g.subs.length)}
                   </span>
                 )}
                 <span className="su-desplegar">
-                  {abierto ? 'Ocultar' : 'Ver los tipos'} <CaretRight size={12} weight="bold" className="su-flecha" />
+                  {abierto ? ts.ocultar : ts.verTipos} <CaretRight size={12} weight="bold" className="su-flecha" />
                 </span>
               </div>
               {abierto && (
                 <div className="su-subs">
-                  <div className="su-ayuda-grupo">Marca los que no quieras recibir. Los demás seguirán llegando como hasta ahora.</div>
+                  <div className="su-ayuda-grupo">{ts.ayudaGrupo}</div>
                   {g.subs.map((s) => filaSub(s, true))}
                 </div>
               )}
@@ -404,7 +407,7 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
         })}
       </div>
       <footer className="cal-pie">
-        Agrupados por empresa: despliega cada una para elegir qué tipos de correo dejar de recibir. La baja de un clic y por correo no abren ninguna web.
+        {ts.pie}
       </footer>
     </section>
   )

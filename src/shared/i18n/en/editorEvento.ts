@@ -1,0 +1,22 @@
+// Editor de eventos propios (nuevo o editar).
+export const editorEvento = {
+  editar: 'Edit Event',
+  nuevo: 'New Event',
+  titulo: 'Title',
+  todoElDia: 'All-day',
+  desde: 'Starts',
+  dia: 'Date',
+  hasta: 'Ends',
+  hora: 'Time',
+  lugar: 'Location or video call link',
+  nota: 'Note',
+  avisos: 'Reminders',
+  avisosTodoElDia: '(counted from 9:00 AM on the day)',
+  antes: (aviso: string) => `${aviso} before`,
+  enlazado: (asunto?: string) => `Linked to the email${asunto ? ` "${asunto}"` : ''}`,
+  borrarSeguro: 'Really Delete?',
+  crear: 'Create Event',
+  guardado: 'Event saved',
+  creado: 'Event created',
+  borrado: 'Event deleted',
+}

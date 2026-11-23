@@ -23,6 +23,7 @@ import type { Buzon, Carpeta, RolCarpeta } from '@shared/tipos'
 import { api, type Correo } from '@/estado'
 import { useInterfaz } from '@/components/MenuContextual'
 import { claveCarpeta } from '@/components/Ajustes'
+import { useT } from '@/i18n'
 
 const iconoRol: Record<RolCarpeta, Icon> = {
   inbox: Tray,
@@ -60,6 +61,7 @@ export function Sidebar({
   ocultos, onOcultarElemento, onAjustes,
 }: Props) {
   const ui = useInterfaz()
+  const t = useT()
   const ve = (clave: string) => !ocultos.has(clave)
   // Clic derecho en un elemento de la barra: ocultarlo (se vuelve a mostrar desde Ajustes).
   const menuOcultar = (clave: string) => (e: React.MouseEvent) => {
@@ -68,8 +70,8 @@ export function Sidebar({
       x: e.clientX,
       y: e.clientY,
       elementos: [
-        { etiqueta: 'Ocultar de la barra lateral', icono: <EyeSlash size={15} />, accion: () => onOcultarElemento(clave) },
-        { etiqueta: 'Personalizar la barra lateral…', icono: <GearSix size={15} />, accion: onAjustes },
+        { etiqueta: t.lateral.ocultarElemento, icono: <EyeSlash size={15} />, accion: () => onOcultarElemento(clave) },
+        { etiqueta: t.lateral.personalizar, icono: <GearSix size={15} />, accion: onAjustes },
       ],
     })
   }
@@ -138,24 +140,24 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sb-cabecera">
-        <button className="boton-icono cerrar-ventana" title="Cerrar (NimboMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
+        <button className="boton-icono cerrar-ventana" title={t.lateral.cerrar} onClick={() => api.cerrarVentana()}>
           <X size={16} weight="bold" />
         </button>
         <span className="sb-hueco" />
-        <button className="boton-icono" title="Ocultar barra lateral" onClick={onOcultar}>
+        <button className="boton-icono" title={t.lateral.ocultar} onClick={onOcultar}>
           <SidebarSimple size={18} />
         </button>
       </div>
 
       <div className="sb-scroll">
         {['fav:todas', 'fav:marcados', 'fav:borradores', 'fav:enviados', 'fav:calendario'].some(ve) && (
-          <Seccion titulo="Favoritos">
+          <Seccion titulo={t.comun.buzones.favoritos}>
             {ve('fav:todas') && (
               <>
                 <Item
                   buzon={{ tipo: 'todas', rol: 'inbox' }}
                   icono={Tray}
-                  texto="Todas las bandejas"
+                  texto={t.comun.buzones.todasBandejas}
                   contador={contar({ tipo: 'todas', rol: 'inbox' })}
                   desplegable="todas"
                   ocultable="fav:todas"
@@ -170,10 +172,10 @@ export function Sidebar({
               </>
             )}
             {ve('fav:marcados') && (
-              <Item buzon={{ tipo: 'marcados' }} icono={Flag} texto="Marcados" contador={contar({ tipo: 'marcados' }, false)} ocultable="fav:marcados" />
+              <Item buzon={{ tipo: 'marcados' }} icono={Flag} texto={t.comun.buzones.marcados} contador={contar({ tipo: 'marcados' }, false)} ocultable="fav:marcados" />
             )}
-            {ve('fav:borradores') && <Item buzon={{ tipo: 'todas', rol: 'drafts' }} icono={File} texto="Todos los borradores" ocultable="fav:borradores" />}
-            {ve('fav:enviados') && <Item buzon={{ tipo: 'todas', rol: 'sent' }} icono={PaperPlaneTilt} texto="Todos los enviados" ocultable="fav:enviados" />}
+            {ve('fav:borradores') && <Item buzon={{ tipo: 'todas', rol: 'drafts' }} icono={File} texto={t.comun.buzones.todosBorradores} ocultable="fav:borradores" />}
+            {ve('fav:enviados') && <Item buzon={{ tipo: 'todas', rol: 'sent' }} icono={PaperPlaneTilt} texto={t.comun.buzones.todosEnviados} ocultable="fav:enviados" />}
             {ve('fav:calendario') && (
               <div
                 className={`sb-item${calendarioActivo ? ' activo' : ''}`}
@@ -185,15 +187,15 @@ export function Sidebar({
                   <CaretRight size={10} weight="bold" />
                 </span>
                 <CalendarBlank className="sb-icono" size={18} weight="regular" />
-                <span className="sb-texto">Calendario</span>
+                <span className="sb-texto">{t.comun.buzones.calendario}</span>
               </div>
             )}
           </Seccion>
         )}
 
         {(ve('fav:hoy') || ve('fav:suscripciones')) && (
-          <Seccion titulo="Buzones inteligentes">
-            {ve('fav:hoy') && <Item buzon={{ tipo: 'hoy' }} icono={Sun} texto="Hoy" contador={contar({ tipo: 'hoy' })} ocultable="fav:hoy" />}
+          <Seccion titulo={t.comun.buzones.buzonesInteligentes}>
+            {ve('fav:hoy') && <Item buzon={{ tipo: 'hoy' }} icono={Sun} texto={t.comun.buzones.hoy} contador={contar({ tipo: 'hoy' })} ocultable="fav:hoy" />}
             {ve('fav:suscripciones') && (
               <div
                 className={`sb-item${suscripcionesActivo ? ' activo' : ''}`}
@@ -205,7 +207,7 @@ export function Sidebar({
                   <CaretRight size={10} weight="bold" />
                 </span>
                 <Newspaper className="sb-icono" size={18} weight="regular" />
-                <span className="sb-texto">Suscripciones</span>
+                <span className="sb-texto">{t.comun.buzones.suscripciones}</span>
               </div>
             )}
           </Seccion>
@@ -239,12 +241,12 @@ export function Sidebar({
             .map((e) => {
               const nombre = datos.cuentas.find((c) => c.id === e.id)?.nombre ?? e.id
               const texto =
-                e.estado === 'conectando' ? 'Conectando…' : e.estado === 'sin-clave' ? 'Falta la contraseña' : 'Sin conexión'
+                e.estado === 'conectando' ? t.lateral.estado.conectando : e.estado === 'sin-clave' ? t.lateral.estado.sinClave : t.lateral.estado.sinConexion
               return (
                 <div
                   key={e.id}
                   className={`sb-estado-fila ${e.estado}${e.estado === 'conectando' ? '' : ' pulsable'}`}
-                  title={e.estado === 'conectando' ? e.detalle : `${e.detalle ?? ''}\nPulsa para arreglarlo`}
+                  title={e.estado === 'conectando' ? e.detalle : `${e.detalle ?? ''}\n${t.lateral.estado.pulsaParaArreglar}`}
                   onClick={e.estado === 'conectando' ? undefined : () => onArreglarCuenta(e.id)}
                 >
                   <span className="sb-estado-punto" />
@@ -255,11 +257,11 @@ export function Sidebar({
         </div>
       )}
       <div className="sb-pie">
-        <button className="sb-ajustes" title="Ajustes" onClick={onAjustes}>
+        <button className="sb-ajustes" title={t.lateral.ajustes} onClick={onAjustes}>
           <GearSix size={18} />
         </button>
         <button className="sb-anadir" onClick={onAnadirCuenta}>
-          <Plus size={13} weight="bold" /> Añadir cuenta
+          <Plus size={13} weight="bold" /> {t.lateral.anadirCuenta}
         </button>
       </div>
     </aside>

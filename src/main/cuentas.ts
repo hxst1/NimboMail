@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path'
 import tls from 'node:tls'
 import { parse, stringify } from 'smol-toml'
 import { NOMBRE_ANTERIOR } from './migracion'
+import { t } from './idioma'
 import { renovarAcceso, type IdOAuth } from './oauth'
 
 export const RUTA_CUENTAS = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'nimbomail', 'cuentas.toml')
@@ -69,7 +70,7 @@ export function escribirCuentas(lista: ConfigCuenta[]) {
     cuenta[c.id] = fila
   }
   mkdirSync(dirname(RUTA_CUENTAS), { recursive: true })
-  const cabecera = '# Cuentas de NimboMail. Las contraseñas no van aquí: están en el llavero del sistema.\n\n'
+  const cabecera = `# ${t().principal.cuentas.cabeceraArchivo}\n\n`
   writeFileSync(RUTA_CUENTAS + '.tmp', cabecera + stringify({ cuenta }) + '\n', { mode: 0o600 })
   renameSync(RUTA_CUENTAS + '.tmp', RUTA_CUENTAS)
 }
@@ -109,8 +110,8 @@ export function guardarSecreto(direccion: string, valor: string): Promise<void> 
     })
     let error = ''
     p.stderr.on('data', (d) => (error += d))
-    p.on('error', () => reject(new Error('Falta secret-tool (paquete libsecret) para guardar la contraseña')))
-    p.on('close', (codigo) => (codigo === 0 ? resolve() : reject(new Error(error.trim() || 'No se pudo guardar en el llavero'))))
+    p.on('error', () => reject(new Error(t().principal.cuentas.faltaSecretTool)))
+    p.on('close', (codigo) => (codigo === 0 ? resolve() : reject(new Error(error.trim() || t().principal.cuentas.noGuardarLlavero))))
     p.stdin.end(valor)
   })
 }
@@ -125,7 +126,7 @@ export function borrarSecreto(direccion: string): Promise<void> {
 
 export class SinClave extends Error {
   constructor(public direccion: string) {
-    super(`Falta la contraseña de ${direccion}`)
+    super(t().principal.cuentas.faltaClaveDe(direccion))
   }
 }
 

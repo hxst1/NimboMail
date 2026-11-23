@@ -19,6 +19,8 @@ import type { Instancia } from '@shared/tipos'
 import { useAcento } from '@/components/Acento'
 import { Ajustes } from '@/components/Ajustes'
 import { miles } from '@/formato'
+import { useIdioma, useT } from '@/i18n'
+import type { Textos } from '@shared/i18n'
 import {
   BurbujaTraduccion, InterfazContexto, MenuContextual, type ElementoMenu, type Interfaz, type MenuAbierto, type OpcionesRedactar,
 } from '@/components/MenuContextual'
@@ -39,14 +41,14 @@ function guardarPreferencia(clave: string, valor: string) {
   }
 }
 
-function tituloDe(d: Datos, b: Buzon): string {
+function tituloDe(d: Datos, b: Buzon, t: Textos): string {
   switch (b.tipo) {
     case 'todas':
-      return { inbox: 'Todas las bandejas', drafts: 'Todos los borradores', sent: 'Todos los enviados' }[b.rol]
+      return { inbox: t.comun.buzones.todasBandejas, drafts: t.comun.buzones.todosBorradores, sent: t.comun.buzones.todosEnviados }[b.rol]
     case 'marcados':
-      return 'Marcados'
+      return t.comun.buzones.marcados
     case 'hoy':
-      return 'Hoy'
+      return t.comun.buzones.hoy
     case 'carpeta': {
       const c = d.carpetas.find((f) => f.id === b.carpeta)
       const cuenta = d.cuentas.find((x) => x.id === c?.cuenta)
@@ -58,6 +60,9 @@ function tituloDe(d: Datos, b: Buzon): string {
 export function App() {
   const correo = useCorreo()
   const { datos, seleccion } = correo
+  const t = useT()
+  // El traductor solo va de inglés a español: solo se ofrece con la app en español.
+  const conTraductor = useIdioma().idioma === 'es'
 
   const vistaForzada = window.niebla.vista
   const [disposicion, setDisposicion] = useState<Disposicion>(() =>
@@ -151,12 +156,12 @@ export function App() {
     try {
       await api.sincronizar()
     } catch (e) {
-      avisar(`No se pudo actualizar: ${(e as Error).message}`)
+      avisar(t.app.noSePudoActualizar((e as Error).message))
     } finally {
       setActualizando(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actualizando])
+  }, [actualizando, t])
   const [siempreTraducir, setSiempreTraducir] = useState(() => leerPreferencia<string>(TRADUCIR_SIEMPRE, '0') === '1')
 
   const lista = useMemo(
@@ -168,9 +173,9 @@ export function App() {
   // Errores del principal (sin conexión, fallo al mover…): aviso discreto unos segundos.
   useEffect(
     () =>
-      window.niebla.alError((t) => {
-        setAviso(t)
-        setTimeout(() => setAviso((a) => (a === t ? null : a)), 6000)
+      window.niebla.alError((texto) => {
+        setAviso(texto)
+        setTimeout(() => setAviso((a) => (a === texto ? null : a)), 6000)
       }),
     [],
   )
@@ -198,13 +203,13 @@ export function App() {
   // con las flechas ya estén descargados.
   useEffect(() => {
     if (!seleccion || window.niebla.demo) return
-    const t = setTimeout(() => {
+    const espera = setTimeout(() => {
       const i = lista.findIndex((m) => m.id === seleccion)
       if (i < 0) return
       const vecinos = [...lista.slice(i + 1, i + 6), ...lista.slice(Math.max(0, i - 5), i)].map((m) => m.id)
       if (vecinos.length) api.precargar(vecinos)
     }, 150)
-    return () => clearTimeout(t)
+    return () => clearTimeout(espera)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seleccion])
 
@@ -236,9 +241,9 @@ export function App() {
     api.mover(ids, destino)
   }
 
-  const avisar = useCallback((t: string) => {
-    setAviso(t)
-    setTimeout(() => setAviso((a) => (a === t ? null : a)), 4000)
+  const avisar = useCallback((texto: string) => {
+    setAviso(texto)
+    setTimeout(() => setAviso((a) => (a === texto ? null : a)), 4000)
   }, [])
 
   const redactar = useCallback((o: OpcionesRedactar) => setRedactando(o), [])
@@ -249,7 +254,7 @@ export function App() {
       abrirMenu: setMenu,
       traducirSeleccion: (x, y, texto) => setBurbuja({ x, y, texto }),
       avisar,
-      buscar: (t) => correo.setBusqueda(t),
+      buscar: (texto) => correo.setBusqueda(texto),
       redactar,
       nuevoEvento: (o) => setEditorEvento({ nuevo: o ?? {} }),
       editarEvento: (e) => setEditorEvento({ existente: e }),
@@ -279,22 +284,22 @@ export function App() {
       y,
       elementos: [
         c.auth === 'clave'
-          ? { etiqueta: 'Cambiar la contraseña…', icono: <Key size={15} />, accion: () => setAlta({ cuenta: id }) }
-          : { etiqueta: 'Volver a iniciar sesión', icono: <Key size={15} />, accion: () => api.volverAEntrar(id).catch((e: Error) => avisar(e.message)) },
-        { etiqueta: 'Añadir otra cuenta…', icono: <UserPlus size={15} />, accion: () => setAlta({}) },
+          ? { etiqueta: t.menu.cuenta.cambiarContrasena, icono: <Key size={15} />, accion: () => setAlta({ cuenta: id }) }
+          : { etiqueta: t.menu.cuenta.volverAEntrar, icono: <Key size={15} />, accion: () => api.volverAEntrar(id).catch((e: Error) => avisar(e.message)) },
+        { etiqueta: t.menu.cuenta.anadirOtra, icono: <UserPlus size={15} />, accion: () => setAlta({}) },
         '-',
         {
-          etiqueta: `Quitar «${c.nombre}» de NimboMail`,
+          etiqueta: t.menu.cuenta.quitar(c.nombre),
           icono: <Trash size={15} />,
           peligro: true,
           // Confirmación en el propio menú: el correo del servidor no se toca, solo la copia local.
           submenu: [
             {
-              etiqueta: 'Sí, quitarla (el correo sigue en el servidor)',
+              etiqueta: t.menu.cuenta.confirmarQuitar,
               peligro: true,
               accion: async () => {
                 await api.quitarCuenta(id)
-                avisar(`«${c.nombre}» quitada de NimboMail`)
+                avisar(t.menu.cuenta.quitada(c.nombre))
               },
             },
           ],
@@ -315,36 +320,36 @@ export function App() {
       const moverFila = async (destino: { rol: RolCarpeta } | { ruta: string }) => api.mover(await idsHilo(), destino)
       const remitente = m.de.nombre || m.de.direccion
       const elementos: ElementoMenu[] = [
-        { etiqueta: 'Responder', icono: <ArrowBendUpLeft size={15} />, atajo: 'Ctrl R', accion: () => redactar({ tipo: 'responder', id: m.id }) },
-        { etiqueta: 'Responder a todos', icono: <ArrowBendDoubleUpLeft size={15} />, atajo: 'Ctrl ⇧ R', accion: () => redactar({ tipo: 'responderTodos', id: m.id }) },
-        { etiqueta: 'Reenviar', icono: <ArrowBendUpRight size={15} />, atajo: 'Ctrl ⇧ F', accion: () => redactar({ tipo: 'reenviar', id: m.id }) },
+        { etiqueta: t.menu.responder, icono: <ArrowBendUpLeft size={15} />, atajo: 'Ctrl R', accion: () => redactar({ tipo: 'responder', id: m.id }) },
+        { etiqueta: t.menu.responderTodos, icono: <ArrowBendDoubleUpLeft size={15} />, atajo: 'Ctrl ⇧ R', accion: () => redactar({ tipo: 'responderTodos', id: m.id }) },
+        { etiqueta: t.menu.reenviar, icono: <ArrowBendUpRight size={15} />, atajo: 'Ctrl ⇧ F', accion: () => redactar({ tipo: 'reenviar', id: m.id }) },
         '-',
         {
-          etiqueta: m.leido ? 'Marcar como no leído' : 'Marcar como leído',
+          etiqueta: m.leido ? t.menu.fila.marcarNoLeido : t.menu.fila.marcarLeido,
           icono: m.leido ? <EnvelopeSimple size={15} /> : <EnvelopeSimpleOpen size={15} />,
           atajo: 'Ctrl ⇧ U',
           accion: async () => api.marcar(await idsHilo(), { leido: !m.leido }),
         },
-        { etiqueta: m.marcado ? 'Quitar marca' : 'Marcar', icono: <Flag size={15} />, atajo: 'Ctrl ⇧ L', accion: () => api.marcar([m.id], { marcado: !m.marcado }) },
+        { etiqueta: m.marcado ? t.menu.fila.quitarMarca : t.menu.fila.marcar, icono: <Flag size={15} />, atajo: 'Ctrl ⇧ L', accion: () => api.marcar([m.id], { marcado: !m.marcado }) },
         '-',
-        { etiqueta: 'Archivar', icono: <Archive size={15} />, atajo: 'Ctrl ⇧ A', accion: () => moverFila({ rol: 'archive' }) },
+        { etiqueta: t.menu.fila.archivar, icono: <Archive size={15} />, atajo: 'Ctrl ⇧ A', accion: () => moverFila({ rol: 'archive' }) },
         {
-          etiqueta: 'Mover a',
+          etiqueta: t.menu.fila.moverA,
           icono: <Folder size={15} />,
           submenu: datos.carpetas
             .filter((c) => c.cuenta === m.cuenta && c.id !== m.carpeta)
             .map((c) => ({ etiqueta: c.nombre, icono: <Folder size={14} />, accion: () => moverFila({ ruta: c.ruta }) })),
         },
-        { etiqueta: 'Mandar a spam', icono: <Prohibit size={15} />, atajo: 'Ctrl ⇧ J', accion: () => moverFila({ rol: 'junk' }) },
-        { etiqueta: 'Mover a la papelera', icono: <Trash size={15} />, atajo: 'Supr', peligro: true, accion: () => moverFila({ rol: 'trash' }) },
+        { etiqueta: t.menu.fila.mandarASpam, icono: <Prohibit size={15} />, atajo: 'Ctrl ⇧ J', accion: () => moverFila({ rol: 'junk' }) },
+        { etiqueta: t.menu.fila.moverAPapelera, icono: <Trash size={15} />, atajo: t.menu.teclas.supr, peligro: true, accion: () => moverFila({ rol: 'trash' }) },
         '-',
         {
-          etiqueta: `Nuevo correo a ${remitente}`,
+          etiqueta: t.menu.nuevoCorreoA(remitente),
           icono: <UserPlus size={15} />,
           accion: () => redactar({ tipo: 'nuevo', para: [m.de], cuenta: m.cuenta }),
         },
         {
-          etiqueta: 'Crear evento con este correo…',
+          etiqueta: t.menu.crearEvento,
           icono: <CalendarPlus size={15} />,
           accion: () => {
             const asunto = m.asunto.replace(/^((re|rv|fw|fwd|reenviado)\s*:\s*)+/i, '')
@@ -355,7 +360,7 @@ export function App() {
       setMenu({ x, y, elementos })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [datos.carpetas, redactar],
+    [datos.carpetas, redactar, t],
   )
 
   const accion = (a: AccionBarra) => {
@@ -402,7 +407,7 @@ export function App() {
       if (e.ctrlKey && !e.shiftKey && k === 'f') return e.preventDefault(), setFocoBusqueda(Date.now())
       if (enCampo) return
       if (e.ctrlKey && !e.shiftKey && k === 'z') return e.preventDefault(), api.deshacer()
-      if (e.ctrlKey && e.shiftKey && k === 't') return e.preventDefault(), window.dispatchEvent(new Event('nimbomail:traducir'))
+      if (e.ctrlKey && e.shiftKey && k === 't') return e.preventDefault(), conTraductor && window.dispatchEvent(new Event('nimbomail:traducir'))
       if (e.ctrlKey && !e.shiftKey && k === 'w') return e.preventDefault(), api.cerrarVentana()
       if (e.ctrlKey && !e.shiftKey && k === 'q') return e.preventDefault(), api.salir()
       if (e.ctrlKey && !e.shiftKey && k === 'n') return e.preventDefault(), accion('redactar')
@@ -429,9 +434,9 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const titulo = tituloDe(datos, correo.buzon)
+  const titulo = tituloDe(datos, correo.buzon, t)
   const total = lista.length
-  const subtitulo = `${miles(total)} ${total === 1 ? 'conversación' : 'conversaciones'}${soloNoLeidos ? ' · solo no leídos' : ''}`
+  const subtitulo = `${t.app.conversaciones(total, miles(total))}${soloNoLeidos ? ` · ${t.app.soloNoLeidos}` : ''}`
   const verLector = disposicion === 'columnas' || abierto
   const ancha = disposicion === 'ancha'
   // Doble clic: en Borradores abre el borrador para editarlo; en lista ancha, el lector.
@@ -604,7 +609,7 @@ export function App() {
         />
       )}
       {menu && <MenuContextual menu={menu} onCerrar={cerrarMenu} />}
-      {burbuja && <BurbujaTraduccion x={burbuja.x} y={burbuja.y} texto={burbuja.texto} onCerrar={cerrarBurbuja} />}
+      {burbuja && conTraductor && <BurbujaTraduccion x={burbuja.x} y={burbuja.y} texto={burbuja.texto} onCerrar={cerrarBurbuja} />}
     </div>
     </InterfazContexto.Provider>
   )

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { ArrowSquareOut, CaretDown, CaretRight, EnvelopeSimple, ShieldCheck, X } from '@phosphor-icons/react'
 import type { Cuenta } from '@shared/tipos'
+import type { Textos } from '@shared/i18n'
 import { api } from '@/estado'
+import { useT } from '@/i18n'
 
 type Deteccion = Awaited<ReturnType<typeof api.detectarCuenta>>
 type Servidores = NonNullable<Deteccion['servidores']>
@@ -32,15 +34,12 @@ function Ayuda({ ayuda }: { ayuda: NonNullable<Deteccion['ayuda']> }) {
 }
 
 /** Explica un fallo de conexión en cristiano. */
-function explicar(r: Extract<Prueba, { ok: false }>, d: Deteccion | null): string {
-  const lado = r.donde === 'imap' ? 'recibir (IMAP)' : 'enviar (SMTP)'
-  if (r.motivo === 'clave') {
-    return d?.proveedor === 'google'
-      ? 'Google no aceptó la contraseña. Gmail necesita una contraseña de aplicación, no la de siempre.'
-      : `El servidor para ${lado} no aceptó el usuario o la contraseña.`
-  }
-  if (r.motivo === 'certificado') return `El certificado del servidor para ${lado} no coincide con su nombre.`
-  return `No se pudo conectar con el servidor para ${lado}: ${r.detalle}`
+function explicar(r: Extract<Prueba, { ok: false }>, d: Deteccion | null, t: Textos): string {
+  const e = t.nuevaCuenta.errores
+  const lado = r.donde === 'imap' ? e.ladoImap : e.ladoSmtp
+  if (r.motivo === 'clave') return d?.proveedor === 'google' ? e.claveGoogle : e.claveServidor(lado)
+  if (r.motivo === 'certificado') return e.certificado(lado)
+  return e.conexion(lado, r.detalle)
 }
 
 /**
@@ -60,6 +59,8 @@ export function NuevaCuenta({
   onCerrar: () => void
   avisar: (t: string) => void
 }) {
+  const t = useT()
+  const tn = t.nuevaCuenta
   // Si escriben una dirección que ya está en NimboMail, se pasa a pedir su contraseña.
   const [existente, setExistente] = useState<Cuenta | undefined>(existenteInicial)
   const [nombre, setNombre] = useState('')
@@ -98,11 +99,11 @@ export function NuevaCuenta({
   const paso = existente ? 'clave' : deteccion ? 'credenciales' : 'correo'
 
   const detectar = async () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setFallo({ texto: 'Escribe una dirección de correo válida' })
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setFallo({ texto: tn.errores.direccion })
     setFallo(null)
     const ya = cuentas.find((c) => c.direccion.toLowerCase() === email.trim().toLowerCase())
     if (ya) return setExistente(ya)
-    setOcupado('Buscando la configuración de tu correo…')
+    setOcupado(tn.ocupado.buscando)
     try {
       const d = await api.detectarCuenta(email.trim())
       setDeteccion(d)
@@ -117,7 +118,7 @@ export function NuevaCuenta({
   }
 
   const anadir = async (auth: Cuenta['auth']) => {
-    setOcupado('Añadiendo la cuenta…')
+    setOcupado(tn.ocupado.anadiendo)
     await api.anadirCuenta({
       nombre: nombre.trim() || email.split('@')[0],
       etiqueta: etiqueta.trim() || email,
@@ -126,13 +127,13 @@ export function NuevaCuenta({
       auth,
       clave: auth === 'clave' ? claveFinal : undefined,
     })
-    avisar(`Cuenta añadida: ${etiqueta || email}. Descargando el correo…`)
+    avisar(tn.anadida(etiqueta || email))
     onCerrar()
   }
 
   const tratar = (r: Prueba) => {
     if (r.ok) return true
-    setFallo({ texto: explicar(r, deteccion), certificado: r.motivo === 'certificado' ? r.certificado : undefined, soloEnvio: r.donde === 'smtp' })
+    setFallo({ texto: explicar(r, deteccion, t), certificado: r.motivo === 'certificado' ? r.certificado : undefined, soloEnvio: r.donde === 'smtp' })
     if (r.motivo === 'conexion') setVerServidores(true)
     return false
   }
@@ -141,19 +142,19 @@ export function NuevaCuenta({
     setFallo(null)
     try {
       if (existente) {
-        if (!clave) return setFallo({ texto: 'Escribe la contraseña' })
-        setOcupado('Comprobando…')
+        if (!clave) return setFallo({ texto: tn.errores.clave })
+        setOcupado(tn.ocupado.comprobando)
         const r = await api.cambiarClave(existente.id, claveFinal)
         if (tratar(r) || forzar || (!r.ok && r.motivo !== 'clave')) {
-          avisar(`Contraseña guardada para ${existente.nombre}`)
+          avisar(tn.claveGuardada(existente.nombre))
           onCerrar()
         }
         return
       }
-      if (!servidores.imap || !servidores.smtp) return setFallo({ texto: 'Faltan los servidores de correo' })
+      if (!servidores.imap || !servidores.smtp) return setFallo({ texto: tn.errores.servidores })
       if (deteccion?.auth !== 'clave' && conectadoOAuth) return anadir(deteccion!.auth)
-      if (!clave) return setFallo({ texto: 'Escribe la contraseña' })
-      setOcupado('Probando la conexión…')
+      if (!clave) return setFallo({ texto: tn.errores.clave })
+      setOcupado(tn.ocupado.probando)
       const r = forzar ? ({ ok: true } as const) : await api.probarCuenta(servidores, claveFinal)
       if (tratar(r)) await anadir('clave')
     } catch (e) {
@@ -166,7 +167,7 @@ export function NuevaCuenta({
   const entrarOAuth = async () => {
     if (!deteccion || deteccion.auth === 'clave') return
     setFallo(null)
-    setOcupado('Inicia sesión en el navegador que se ha abierto…')
+    setOcupado(tn.ocupado.navegador)
     try {
       const r = await api.entrarConOAuth(deteccion.auth, email.trim(), servidores)
       setConectadoOAuth(true)
@@ -204,28 +205,28 @@ export function NuevaCuenta({
         onKeyDown={(e) => e.key === 'Escape' && !bienvenida && onCerrar()}
       >
         {!bienvenida && (
-          <button type="button" className="nc-cerrar" onClick={onCerrar} aria-label="Cerrar">
+          <button type="button" className="nc-cerrar" onClick={onCerrar} aria-label={t.comun.acciones.cerrar}>
             <X size={15} />
           </button>
         )}
         <div className="nc-icono">
           <EnvelopeSimple size={30} weight="light" />
         </div>
-        <h2>{existente ? `Contraseña de ${existente.nombre}` : bienvenida ? 'Te damos la bienvenida a NimboMail' : 'Añadir una cuenta'}</h2>
+        <h2>{existente ? tn.titulo.clave(existente.nombre) : bienvenida ? tn.titulo.bienvenida : tn.titulo.nueva}</h2>
         <p className="nc-sub">
           {existente
             ? existente.direccion
             : bienvenida
-              ? 'Añade tu primera cuenta de correo. Funciona con Gmail, Outlook, iCloud y cualquier servidor IMAP.'
-              : 'Gmail, Outlook, iCloud, Yahoo o cualquier servidor IMAP.'}
+              ? tn.sub.bienvenida
+              : tn.sub.nueva}
         </p>
 
         {paso === 'correo' && (
           <>
-            <input className="nc-campo" placeholder="Tu nombre (lo verán al recibir tus correos)" value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
-            <input className="nc-campo" placeholder="correo@ejemplo.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="nc-campo" placeholder={tn.placeholders.nombre} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
+            <input className="nc-campo" placeholder={tn.placeholders.correo} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <button className="nc-boton" type="submit" disabled={!!ocupado}>
-              Continuar
+              {tn.continuar}
             </button>
           </>
         )}
@@ -239,40 +240,40 @@ export function NuevaCuenta({
                 {NOMBRES_PROVEEDOR[deteccion.proveedor] ? ` · ${NOMBRES_PROVEEDOR[deteccion.proveedor]}` : ''} · {deteccion.origen}
               </span>
             </div>
-            <input className="nc-campo" placeholder="Nombre de la cuenta en NimboMail (Trabajo, Personal…)" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} />
+            <input className="nc-campo" placeholder={tn.placeholders.etiqueta} value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} />
 
             {usaOAuth ? (
               <button type="button" className="nc-boton" onClick={entrarOAuth} disabled={!!ocupado}>
-                Continuar con {NOMBRES_PROVEEDOR[deteccion.auth === 'google' ? 'google' : 'microsoft']}
+                {tn.continuarCon(NOMBRES_PROVEEDOR[deteccion.auth === 'google' ? 'google' : 'microsoft'])}
               </button>
             ) : (
               <>
                 <input
                   className="nc-campo"
                   type="password"
-                  placeholder={deteccion.ayuda ? 'Contraseña de aplicación' : 'Contraseña'}
+                  placeholder={deteccion.ayuda ? tn.placeholders.claveAplicacion : tn.placeholders.clave}
                   value={clave}
                   onChange={(e) => setClave(e.target.value)}
                   autoFocus
                 />
                 {deteccion.ayuda && <Ayuda ayuda={deteccion.ayuda} />}
                 <button className="nc-boton" type="submit" disabled={!!ocupado}>
-                  Añadir cuenta
+                  {tn.anadir}
                 </button>
               </>
             )}
 
             <button type="button" className="nc-plegar" onClick={() => setVerServidores((v) => !v)}>
-              {verServidores ? <CaretDown size={11} /> : <CaretRight size={11} />} Ajustes del servidor
+              {verServidores ? <CaretDown size={11} /> : <CaretRight size={11} />} {tn.ajustesServidor}
             </button>
             {verServidores && (
               <div className="nc-servidores">
                 {campoServidor('imap', 'IMAP')}
-                {campoServidor('puerto', 'Puerto', true)}
+                {campoServidor('puerto', tn.servidor.puerto, true)}
                 {campoServidor('smtp', 'SMTP')}
-                {campoServidor('smtpPuerto', 'Puerto', true)}
-                {campoServidor('usuario', 'Usuario')}
-                {campoServidor('tlsNombre', 'Certificado de')}
+                {campoServidor('smtpPuerto', tn.servidor.puerto, true)}
+                {campoServidor('usuario', tn.servidor.usuario)}
+                {campoServidor('tlsNombre', tn.servidor.certificadoDe)}
               </div>
             )}
           </>
@@ -283,14 +284,14 @@ export function NuevaCuenta({
             <input
               className="nc-campo"
               type="password"
-              placeholder={ayudaClave ? 'Contraseña de aplicación' : 'Contraseña'}
+              placeholder={ayudaClave ? tn.placeholders.claveAplicacion : tn.placeholders.clave}
               value={clave}
               onChange={(e) => setClave(e.target.value)}
               autoFocus
             />
             {ayudaClave && <Ayuda ayuda={ayudaClave} />}
             <button className="nc-boton" type="submit" disabled={!!ocupado}>
-              Guardar
+              {t.comun.acciones.guardar}
             </button>
           </>
         )}
@@ -307,17 +308,17 @@ export function NuevaCuenta({
                   setFallo(null)
                 }}
               >
-                Confiar en el certificado de {fallo.certificado}
+                {tn.confiarCertificado(fallo.certificado)}
               </button>
             )}
             {fallo.soloEnvio && !fallo.certificado && (
               <button type="button" onClick={() => probarYAnadir(true)}>
-                Añadirla igualmente (recibir funciona; el envío se puede arreglar después)
+                {tn.anadirIgualmente}
               </button>
             )}
           </div>
         )}
-        <p className="nc-privacidad">Las contraseñas se guardan en el llavero del sistema y el correo solo se queda en este equipo.</p>
+        <p className="nc-privacidad">{tn.privacidad}</p>
       </form>
     </div>
   )

@@ -1,6 +1,7 @@
 // iCalendar (RFC 5545) sin dependencias: lo justo para invitaciones (iMIP) y calendarios suscritos.
 // Lee eventos con zona horaria (también los nombres de Windows que manda Outlook/Teams), los que se
 // repiten (RRULE con EXDATE y excepciones RECURRENCE-ID) y construye respuestas METHOD:REPLY.
+import { t } from './idioma'
 
 export interface Prop {
   nombre: string
@@ -206,7 +207,7 @@ export function leerEventos(raiz: Bloque): { metodo: string; eventos: EventoIcs[
     eventos.push({
       uid,
       recurrencia: rec ? (leerFecha(rec, propias)?.ms ?? null) : null,
-      titulo: texto(prop(e, 'SUMMARY')?.valor ?? '') || '(Sin título)',
+      titulo: texto(prop(e, 'SUMMARY')?.valor ?? '') || t().principal.calendario.sinTitulo,
       inicio: ini.ms,
       fin: Math.max(fin, ini.ms),
       todoElDia: ini.todoElDia,

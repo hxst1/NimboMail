@@ -13,6 +13,7 @@ import { plegarCitasHtml, separarCita, textoAHtml } from '@/citas'
 import { api } from '@/estado'
 import { iniciarTraductor, traducirArbol, traducirTexto } from '@/traductor'
 import { esIngles, textoDeHtml } from '@/traductor/idioma'
+import { useIdioma, useT } from '@/i18n'
 
 /** «Traducir siempre los correos en inglés» (menú «···»). */
 export const TRADUCIR_SIEMPRE = 'traducirSiempre'
@@ -220,6 +221,9 @@ function Tarjeta(p: {
 }) {
   const { m } = p
   const ui = useInterfaz()
+  const t = useT()
+  // El traductor solo va de inglés a español: con la app en otro idioma no se ofrece nada.
+  const conTraductor = useIdioma().idioma === 'es'
   const { cuerpo, error } = useCuerpo(m.id, p.abierta)
   const adjuntos = cuerpo?.adjuntos.filter((a) => !a.inline) ?? []
 
@@ -249,19 +253,21 @@ function Tarjeta(p: {
   const estadoTrad = useRef(trad)
   estadoTrad.current = trad
   const ingles = useMemo(
-    () => !!cuerpo && esIngles(cuerpo.html ? textoDeHtml(cuerpo.html) : separarCita(cuerpo.texto ?? '').propio),
-    [cuerpo],
+    () => conTraductor && !!cuerpo && esIngles(cuerpo.html ? textoDeHtml(cuerpo.html) : separarCita(cuerpo.texto ?? '').propio),
+    [cuerpo, conTraductor],
   )
   const guardadaTexto = cuerpo?.traduccion?.startsWith('texto:') ? cuerpo.traduccion.slice(6) : null
 
-  // Si ya se tradujo antes, se abre traducido directamente.
+  // Si ya se tradujo antes, se abre traducido directamente (solo con la app en español; si no, el original).
   useEffect(() => {
-    if (cuerpo?.traduccion) {
+    if (cuerpo?.traduccion && conTraductor) {
       setUsarGuardada(true)
       setTrad('traducido')
+    } else if (!conTraductor && estadoTrad.current === 'traducido') {
+      verOriginal()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cuerpo])
+  }, [cuerpo, conTraductor])
 
   const srcDoc = useMemo(() => {
     if (!cuerpo?.html) return null
@@ -294,18 +300,18 @@ function Tarjeta(p: {
     setFallo(null)
     setTrad('traduciendo')
     try {
-      setFase((await api.traductorListo()) ? 'Traduciendo…' : 'Descargando el traductor (solo la primera vez, unos 37 MB)…')
+      setFase((await api.traductorListo()) ? t.lector.traduccion.traduciendo : t.lector.traduccion.descargando)
       await iniciarTraductor()
-      setFase('Traduciendo…')
+      setFase(t.lector.traduccion.traduciendo)
       if (cuerpo.html) {
         const d = docCorreo.current
-        if (!d) throw new Error('El correo aún no se ha cargado')
+        if (!d) throw new Error(t.lector.traduccion.noCargado)
         await traducirArbol(d.body)
         guardarHtml()
       } else {
         const { propio, cita } = separarCita(cuerpo.texto ?? '')
-        const t = await traducirTexto(propio)
-        cuerpo.traduccion = 'texto:' + (cita.trim() ? `${t}\n\n${cita}` : t)
+        const traducido = await traducirTexto(propio)
+        cuerpo.traduccion = 'texto:' + (cita.trim() ? `${traducido}\n\n${cita}` : traducido)
         api.guardarTraduccion(m.id, cuerpo.traduccion)
       }
       setTrad('traducido')
@@ -354,7 +360,7 @@ function Tarjeta(p: {
   const intentar = (fn: () => Promise<unknown>, hecho?: string) =>
     fn().then(
       () => hecho && ui.avisar(hecho),
-      (e: Error) => ui.avisar(`No se pudo: ${e.message}`),
+      (e: Error) => ui.avisar(t.menu.noSePudo(e.message)),
     )
 
   const menuContenido = (x: number, y: number, info: InfoMenu) => {
@@ -363,12 +369,14 @@ function Tarjeta(p: {
     if (sel) {
       const corto = sel.length > 22 ? sel.slice(0, 22) + '…' : sel
       el.push(
-        { etiqueta: 'Responder citando la selección', icono: <ArrowBendUpLeft size={15} />, accion: () => ui.redactar({ tipo: 'responder', id: m.id, cita: sel }) },
-        { etiqueta: 'Copiar', icono: <Copy size={15} />, atajo: 'Ctrl C', accion: () => api.copiarTexto(sel) },
-        { etiqueta: 'Traducir al español', icono: <Translate size={15} />, accion: () => ui.traducirSeleccion(x, y, sel) },
+        { etiqueta: t.menu.contenido.responderCitando, icono: <ArrowBendUpLeft size={15} />, accion: () => ui.redactar({ tipo: 'responder', id: m.id, cita: sel }) },
+        { etiqueta: t.menu.copiar, icono: <Copy size={15} />, atajo: 'Ctrl C', accion: () => api.copiarTexto(sel) },
+      )
+      if (conTraductor) el.push({ etiqueta: t.menu.traducirAlEspanol, icono: <Translate size={15} />, accion: () => ui.traducirSeleccion(x, y, sel) })
+      el.push(
         '-',
-        { etiqueta: 'Buscar en NimboMail', icono: <MagnifyingGlass size={15} />, accion: () => ui.buscar(sel) },
-        { etiqueta: `Buscar «${corto}» en la web`, icono: <Globe size={15} />, accion: () => api.buscarWeb(sel) },
+        { etiqueta: t.menu.contenido.buscarEnApp, icono: <MagnifyingGlass size={15} />, accion: () => ui.buscar(sel) },
+        { etiqueta: t.menu.contenido.buscarEnWeb(corto), icono: <Globe size={15} />, accion: () => api.buscarWeb(sel) },
       )
     }
     if (info.enlace) {
@@ -377,13 +385,13 @@ function Tarjeta(p: {
       if (mail) {
         const direccion = decodeURIComponent(mail[1])
         el.push(
-          { etiqueta: `Nuevo correo a ${direccion}`, icono: <UserPlus size={15} />, accion: () => ui.redactar({ tipo: 'nuevo', para: [{ nombre: '', direccion }], cuenta: m.cuenta }) },
-          { etiqueta: 'Copiar dirección', icono: <Copy size={15} />, accion: () => intentar(() => api.copiarTexto(direccion), 'Dirección copiada') },
+          { etiqueta: t.menu.nuevoCorreoA(direccion), icono: <UserPlus size={15} />, accion: () => ui.redactar({ tipo: 'nuevo', para: [{ nombre: '', direccion }], cuenta: m.cuenta }) },
+          { etiqueta: t.menu.copiarDireccion, icono: <Copy size={15} />, accion: () => intentar(() => api.copiarTexto(direccion), t.menu.direccionCopiada) },
         )
       } else {
         el.push(
-          { etiqueta: 'Abrir enlace', icono: <ArrowSquareOut size={15} />, accion: () => api.abrirEnlace(info.enlace!) },
-          { etiqueta: 'Copiar enlace', icono: <LinkSimple size={15} />, accion: () => intentar(() => api.copiarTexto(info.enlace!), 'Enlace copiado') },
+          { etiqueta: t.menu.contenido.abrirEnlace, icono: <ArrowSquareOut size={15} />, accion: () => api.abrirEnlace(info.enlace!) },
+          { etiqueta: t.menu.contenido.copiarEnlace, icono: <LinkSimple size={15} />, accion: () => intentar(() => api.copiarTexto(info.enlace!), t.menu.contenido.enlaceCopiado) },
         )
       }
     }
@@ -391,19 +399,19 @@ function Tarjeta(p: {
       const url = info.imagen
       if (el.length) el.push('-')
       el.push(
-        { etiqueta: 'Vista rápida', icono: <Eye size={15} />, accion: () => p.onVistaRapida([{ url, nombre: 'Imagen', tipo: 'image/*' }], 0) },
-        { etiqueta: 'Copiar imagen', icono: <Copy size={15} />, accion: () => intentar(() => api.copiarImagen(url), 'Imagen copiada') },
-        { etiqueta: 'Guardar imagen como…', icono: <DownloadSimple size={15} />, accion: () => intentar(() => api.guardarComo(url)) },
+        { etiqueta: t.menu.vistaRapida, icono: <Eye size={15} />, accion: () => p.onVistaRapida([{ url, nombre: t.menu.contenido.imagen, tipo: 'image/*' }], 0) },
+        { etiqueta: t.menu.contenido.copiarImagen, icono: <Copy size={15} />, accion: () => intentar(() => api.copiarImagen(url), t.menu.contenido.imagenCopiada) },
+        { etiqueta: t.menu.contenido.guardarImagen, icono: <DownloadSimple size={15} />, accion: () => intentar(() => api.guardarComo(url)) },
       )
     }
     if (!el.length) {
       el.push(
-        { etiqueta: 'Responder', icono: <ArrowBendUpLeft size={15} />, atajo: 'Ctrl R', accion: () => ui.redactar({ tipo: 'responder', id: m.id }) },
-        { etiqueta: 'Responder a todos', icono: <ArrowBendDoubleUpLeft size={15} />, atajo: 'Ctrl ⇧ R', accion: () => ui.redactar({ tipo: 'responderTodos', id: m.id }) },
-        { etiqueta: 'Reenviar', icono: <ArrowBendUpRight size={15} />, atajo: 'Ctrl ⇧ F', accion: () => ui.redactar({ tipo: 'reenviar', id: m.id }) },
+        { etiqueta: t.menu.responder, icono: <ArrowBendUpLeft size={15} />, atajo: 'Ctrl R', accion: () => ui.redactar({ tipo: 'responder', id: m.id }) },
+        { etiqueta: t.menu.responderTodos, icono: <ArrowBendDoubleUpLeft size={15} />, atajo: 'Ctrl ⇧ R', accion: () => ui.redactar({ tipo: 'responderTodos', id: m.id }) },
+        { etiqueta: t.menu.reenviar, icono: <ArrowBendUpRight size={15} />, atajo: 'Ctrl ⇧ F', accion: () => ui.redactar({ tipo: 'reenviar', id: m.id }) },
       )
       el.push('-', {
-        etiqueta: 'Crear evento con este correo…',
+        etiqueta: t.menu.crearEvento,
         icono: <CalendarPlus size={15} />,
         accion: () => {
           const asunto = m.asunto.replace(/^((re|rv|fw|fwd|reenviado)\s*:\s*)+/i, '')
@@ -412,8 +420,8 @@ function Tarjeta(p: {
       })
       if (ingles) {
         el.push('-', trad === 'traducido'
-          ? { etiqueta: 'Ver original', icono: <Translate size={15} />, atajo: 'Ctrl ⇧ T', accion: verOriginal }
-          : { etiqueta: 'Traducir al español', icono: <Translate size={15} />, atajo: 'Ctrl ⇧ T', accion: traducir })
+          ? { etiqueta: t.menu.verOriginal, icono: <Translate size={15} />, atajo: 'Ctrl ⇧ T', accion: verOriginal }
+          : { etiqueta: t.menu.traducirAlEspanol, icono: <Translate size={15} />, atajo: 'Ctrl ⇧ T', accion: traducir })
       }
     }
     ui.abrirMenu({ x, y, elementos: el })
@@ -424,11 +432,11 @@ function Tarjeta(p: {
       x,
       y,
       elementos: [
-        { etiqueta: 'Vista rápida', icono: <Eye size={15} />, atajo: 'Espacio', accion: () => abrirAdjunto(a) },
-        { etiqueta: 'Copiar', icono: <Copy size={15} />, atajo: 'Ctrl C', accion: () => intentar(() => api.copiarArchivo(a.url, a.nombre), `«${a.nombre}» copiado`) },
+        { etiqueta: t.menu.vistaRapida, icono: <Eye size={15} />, atajo: t.menu.teclas.espacio, accion: () => abrirAdjunto(a) },
+        { etiqueta: t.menu.copiar, icono: <Copy size={15} />, atajo: 'Ctrl C', accion: () => intentar(() => api.copiarArchivo(a.url, a.nombre), t.menu.adjunto.copiado(a.nombre)) },
         '-',
-        { etiqueta: 'Guardar como…', icono: <DownloadSimple size={15} />, accion: () => intentar(() => api.guardarComo(a.url, a.nombre)) },
-        { etiqueta: 'Abrir con la app predeterminada', icono: <ArrowSquareOut size={15} />, accion: () => intentar(() => api.abrirArchivo(a.url, a.nombre)) },
+        { etiqueta: t.menu.adjunto.guardarComo, icono: <DownloadSimple size={15} />, accion: () => intentar(() => api.guardarComo(a.url, a.nombre)) },
+        { etiqueta: t.menu.adjunto.abrirCon, icono: <ArrowSquareOut size={15} />, accion: () => intentar(() => api.abrirArchivo(a.url, a.nombre)) },
       ],
     })
 
@@ -437,19 +445,19 @@ function Tarjeta(p: {
       x,
       y,
       elementos: [
-        { etiqueta: 'Nuevo correo a esta persona', icono: <UserPlus size={15} />, accion: () => ui.redactar({ tipo: 'nuevo', para: [d], cuenta: m.cuenta }) },
-        { etiqueta: 'Copiar dirección', icono: <Copy size={15} />, accion: () => intentar(() => api.copiarTexto(d.direccion), 'Dirección copiada') },
-        { etiqueta: 'Ver todos sus correos', icono: <MagnifyingGlass size={15} />, accion: () => ui.buscar(d.direccion) },
+        { etiqueta: t.menu.persona.nuevoCorreo, icono: <UserPlus size={15} />, accion: () => ui.redactar({ tipo: 'nuevo', para: [d], cuenta: m.cuenta }) },
+        { etiqueta: t.menu.copiarDireccion, icono: <Copy size={15} />, accion: () => intentar(() => api.copiarTexto(d.direccion), t.menu.direccionCopiada) },
+        { etiqueta: t.menu.persona.verSusCorreos, icono: <MagnifyingGlass size={15} />, accion: () => ui.buscar(d.direccion) },
         '-',
         {
-          etiqueta: 'Mandar a spam todo lo de este remitente',
+          etiqueta: t.menu.persona.todoASpam,
           icono: <Prohibit size={15} />,
           peligro: true,
           desactivado: p.mio,
           accion: () =>
             intentar(async () => {
               const n = await api.remitenteASpam(m.cuenta, d.direccion)
-              ui.avisar(n ? `${n} ${n === 1 ? 'correo movido' : 'correos movidos'} a spam · Ctrl+Z para deshacer` : 'No había nada suyo fuera de spam')
+              ui.avisar(n ? t.menu.persona.movidosASpam(n) : t.menu.persona.nadaFueraDeSpam)
             }),
         },
       ],
@@ -477,12 +485,12 @@ function Tarjeta(p: {
         <div className="cabecera-datos">
           <div className="cabecera-linea">
             <span className="cabecera-de">
-              {persona(m.de, p.mio ? `${remitente} (tú)` : remitente)}
+              {persona(m.de, p.mio ? t.lector.tu(remitente) : remitente)}
               {p.abierta && m.baja && !p.mio && (
                 <button
                   className={`cabecera-baja${bajaPedida ? ' hecha' : ''}`}
                   disabled={bajaPedida}
-                  title="Darse de baja de este boletín"
+                  title={t.lector.baja.titulo}
                   onClick={(e) => {
                     e.stopPropagation()
                     ui.abrirMenu({
@@ -490,15 +498,15 @@ function Tarjeta(p: {
                       y: e.clientY + 10,
                       elementos: [
                         {
-                          etiqueta: `Darse de baja de ${remitente}`,
+                          etiqueta: t.lector.baja.deRemitente(remitente),
                           icono: <Prohibit size={15} />,
                           accion: async () => {
                             try {
                               const metodo = await api.darseDeBajaDe(m.id)
                               setBajaPedida(true)
-                              ui.avisar(metodo === 'web' ? 'Se ha abierto su página de baja' : `Baja pedida a ${remitente}`)
+                              ui.avisar(metodo === 'web' ? t.lector.baja.paginaAbierta : t.lector.baja.pedidaA(remitente))
                             } catch (err) {
-                              ui.avisar(`No se pudo: ${(err as Error).message}`)
+                              ui.avisar(t.lector.baja.noSePudo((err as Error).message))
                             }
                           },
                         },
@@ -506,7 +514,7 @@ function Tarjeta(p: {
                     })
                   }}
                 >
-                  {bajaPedida ? 'Baja pedida' : 'Darse de baja'}
+                  {bajaPedida ? t.lector.baja.pedida : t.lector.baja.boton}
                 </button>
               )}
             </span>
@@ -514,7 +522,7 @@ function Tarjeta(p: {
           </div>
           {p.abierta ? (
             <div className="cabecera-para">
-              Para:{' '}
+              {t.lector.para}{' '}
               <span>
                 {[...m.para, ...m.cc].map((d, i, todos) => (
                   <span key={d.direccion + i}>
@@ -535,16 +543,16 @@ function Tarjeta(p: {
 
       {p.abierta && (
         <div className="tarjeta-cuerpo">
-          {error && <div className="aviso-error">No se pudo cargar el mensaje: {error}</div>}
-          {!cuerpo && !error && <div className="cargando">Cargando…</div>}
+          {error && <div className="aviso-error">{t.lector.noSeCargo(error)}</div>}
+          {!cuerpo && !error && <div className="cargando">{t.lector.cargando}</div>}
 
           {invitacion && <TarjetaEvento e={invitacion} compacta />}
 
           {p.borrador && (
             <div className="aviso-barra">
               <PencilSimple size={16} />
-              <span>Borrador sin enviar</span>
-              <button onClick={() => ui.redactar({ tipo: 'borrador', id: m.id })}>Editar y enviar</button>
+              <span>{t.lector.borrador.sinEnviar}</span>
+              <button onClick={() => ui.redactar({ tipo: 'borrador', id: m.id })}>{t.lector.borrador.editar}</button>
             </div>
           )}
 
@@ -553,15 +561,15 @@ function Tarjeta(p: {
               <Translate size={16} />
               <span>
                 {fallo
-                  ? `No se pudo traducir: ${fallo}`
+                  ? t.lector.traduccion.noSePudo(fallo)
                   : trad === 'traducido'
-                    ? 'Traducido del inglés'
+                    ? t.lector.traduccion.traducido
                     : trad === 'traduciendo'
                       ? fase
-                      : 'Este correo está en inglés'}
+                      : t.lector.traduccion.enIngles}
               </span>
-              {trad === 'original' && <button onClick={traducir}>Traducir</button>}
-              {trad === 'traducido' && <button onClick={verOriginal}>Ver original</button>}
+              {trad === 'original' && <button onClick={traducir}>{t.lector.traduccion.traducir}</button>}
+              {trad === 'traducido' && <button onClick={verOriginal}>{t.lector.traduccion.verOriginal}</button>}
             </div>
           )}
 
@@ -571,7 +579,7 @@ function Tarjeta(p: {
                 <button
                   className="adjunto"
                   key={a.url || a.nombre}
-                  title={`${a.nombre} — abrir vista rápida`}
+                  title={t.lector.abrirAdjunto(a.nombre)}
                   onClick={() => abrirAdjunto(a)}
                   onContextMenu={(e) => {
                     e.preventDefault()
@@ -598,7 +606,7 @@ function Tarjeta(p: {
                 onMenu={menuContenido}
                 onImagen={(src, todas) =>
                   p.onVistaRapida(
-                    todas.map((u, i) => ({ url: u, nombre: `Imagen ${i + 1}`, tipo: 'image/*' })),
+                    todas.map((u, i) => ({ url: u, nombre: t.lector.imagen(i + 1), tipo: 'image/*' })),
                     Math.max(0, todas.indexOf(src)),
                   )
                 }
@@ -622,6 +630,7 @@ function Tarjeta(p: {
 
 export function Reader({ hilo, seleccionado, nombreCuenta, esMio, onVolver, onVistaRapida, esBorrador }: Props) {
   // Más reciente arriba, como Mail. Abiertos: el seleccionado, el último y los no leídos.
+  const t = useT()
   const orden = useMemo(() => [...hilo].reverse(), [hilo])
   const [abiertas, setAbiertas] = useState<Set<string>>(new Set())
   const clave = hilo.map((m) => m.id).join('|')
@@ -639,29 +648,29 @@ export function Reader({ hilo, seleccionado, nombreCuenta, esMio, onVolver, onVi
     return (
       <section className="lector vacio">
         <Envelope size={54} weight="thin" />
-        <div>Ningún mensaje seleccionado</div>
+        <div>{t.lector.ningunMensaje}</div>
         {onVolver && (
           <button className="volver" onClick={onVolver}>
-            <ArrowLeft size={14} /> Volver a la lista
+            <ArrowLeft size={14} /> {t.lector.volver}
           </button>
         )}
       </section>
     )
   }
 
-  const asunto = (orden.at(-1)?.asunto || orden[0].asunto || '(Sin asunto)').replace(/^((re|rv|fw|fwd|reenviado)\s*:\s*)+/i, '')
+  const asunto = (orden.at(-1)?.asunto || orden[0].asunto || t.lector.sinAsunto).replace(/^((re|rv|fw|fwd|reenviado)\s*:\s*)+/i, '')
 
   return (
     <section className="lector" key={clave}>
       <div className="lector-scroll">
         {onVolver && (
           <button className="volver" onClick={onVolver}>
-            <ArrowLeft size={14} /> Volver a la lista
+            <ArrowLeft size={14} /> {t.lector.volver}
           </button>
         )}
         <h1 className="conv-asunto">
           {asunto}
-          {hilo.length > 1 && <span className="conv-cuenta">{hilo.length} mensajes</span>}
+          {hilo.length > 1 && <span className="conv-cuenta">{t.lector.mensajes(hilo.length)}</span>}
         </h1>
         {orden.map((m) => (
           <Tarjeta

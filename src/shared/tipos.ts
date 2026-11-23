@@ -1,5 +1,7 @@
 // Modelo compartido entre el proceso principal y la interfaz.
 
+import type { Textos } from './i18n'
+
 export type RolCarpeta = 'inbox' | 'drafts' | 'sent' | 'junk' | 'trash' | 'archive' | 'all' | 'normal'
 
 export interface Cuenta {
@@ -160,19 +162,18 @@ export interface Instancia {
 }
 
 /** Los avisos que se pueden elegir, en minutos antes. */
-export const AVISOS: { minutos: number; texto: string }[] = [
-  { minutos: 0, texto: 'Al empezar' },
-  { minutos: 5, texto: '5 minutos' },
-  { minutos: 10, texto: '10 minutos' },
-  { minutos: 15, texto: '15 minutos' },
-  { minutos: 30, texto: '30 minutos' },
-  { minutos: 60, texto: '1 hora' },
-  { minutos: 120, texto: '2 horas' },
-  { minutos: 480, texto: '8 horas' },
-  { minutos: 1440, texto: '1 día' },
-  { minutos: 2880, texto: '2 días' },
-  { minutos: 10080, texto: '1 semana' },
-]
+/** Avisos que se pueden poner a un evento: cuántos minutos antes. */
+export const AVISOS: number[] = [0, 5, 10, 15, 30, 60, 120, 480, 1440, 2880, 10080]
+
+/** «Al empezar», «5 minutos», «1 hora», «2 días», «1 semana»… en el idioma de `t`. */
+export function textoAviso(minutos: number, t: Textos): string {
+  const a = t.comun.avisos
+  if (minutos === 0) return a.alEmpezar
+  if (minutos % 10080 === 0) return a.semanas(minutos / 10080)
+  if (minutos % 1440 === 0) return a.dias(minutos / 1440)
+  if (minutos % 60 === 0) return a.horas(minutos / 60)
+  return a.minutos(minutos)
+}
 
 // ------------------------------------------------------------ suscripciones
 

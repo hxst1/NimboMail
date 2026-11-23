@@ -5,11 +5,12 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { Attachment } from 'mailparser'
 import type { Adjunto } from '@shared/tipos'
+import { t } from './idioma'
 
 export const DIR_ADJUNTOS = join(homedir(), '.cache', 'nimbomail', 'adjuntos')
 
 const carpetaDe = (id: string) => createHash('sha1').update(id).digest('hex').slice(0, 20)
-const limpio = (nombre: string) => nombre.replace(/[/\\\0]/g, '_').slice(0, 180) || 'adjunto'
+const limpio = (nombre: string) => nombre.replace(/[/\\\0]/g, '_').slice(0, 180) || t().principal.nombres.adjunto
 
 export async function guardarAdjuntos(id: string, lista: Attachment[]): Promise<Adjunto[]> {
   if (!lista.length) return []
@@ -17,7 +18,7 @@ export async function guardarAdjuntos(id: string, lista: Attachment[]): Promise<
   await mkdir(dir, { recursive: true })
   const out: Adjunto[] = []
   for (const [i, a] of lista.entries()) {
-    const nombre = limpio(a.filename ?? `adjunto-${i + 1}`)
+    const nombre = limpio(a.filename ?? `${t().principal.nombres.adjunto}-${i + 1}`)
     const archivo = `${i}-${nombre}`
     await writeFile(join(dir, archivo), a.content)
     out.push({
@@ -54,7 +55,7 @@ export async function apuntarAdjuntos(id: string, lista: AdjuntoPendiente[]): Pr
   if (!lista.length) return []
   const dir = join(DIR_ADJUNTOS, carpetaDe(id))
   await mkdir(dir, { recursive: true })
-  const partes = lista.map((a, i) => ({ ...a, nombre: limpio(a.nombre || `adjunto-${i + 1}`) }))
+  const partes = lista.map((a, i) => ({ ...a, nombre: limpio(a.nombre || `${t().principal.nombres.adjunto}-${i + 1}`) }))
   await writeFile(join(dir, 'manifiesto.json'), JSON.stringify({ id, partes }))
   return partes.map((a, i) => ({
     nombre: a.nombre,

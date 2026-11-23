@@ -3,7 +3,7 @@
 #   ~/.local/lib/nimbomail        la aplicación
 #   ~/.local/bin/nimbomail        el lanzador
 #   ~/.local/share/applications/nimbomail.desktop   (y el icono en el tema hicolor)
-# Para actualizar, vuelve a ejecutarlo. Para arrancar con la sesión: `nimbomail --oculto`.
+# Para actualizar, vuelve a ejecutarlo. Para arrancar con la sesión: `nimbomail --hidden`.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -11,11 +11,11 @@ DATOS="${XDG_DATA_HOME:-$HOME/.local/share}"
 APP="$HOME/.local/lib/nimbomail"
 LANZADOR="$HOME/.local/bin/nimbomail"
 
-echo "→ Compilando…"
+echo "→ Building…"
 pnpm install --frozen-lockfile
 pnpm empaquetar
 
-echo "→ Instalando en $APP…"
+echo "→ Installing to $APP…"
 mkdir -p "$(dirname "$APP")" "$(dirname "$LANZADOR")" "$DATOS/applications"
 rm -rf "$APP.nuevo"
 cp -a dist/linux-unpacked "$APP.nuevo"
@@ -26,7 +26,7 @@ rm -rf "$APP.viejo"
 
 cat > "$LANZADOR" <<LANZA
 #!/usr/bin/env bash
-# Lanzador de NimboMail (instalado con scripts/instalar.sh). --oculto: solo en la bandeja.
+# Lanzador de NimboMail (instalado con scripts/instalar.sh). --hidden: solo en la bandeja.
 exec "$APP/nimbomail" "\$@"
 LANZA
 chmod +x "$LANZADOR"
@@ -46,8 +46,9 @@ cat > "$DATOS/applications/nimbomail.desktop" <<DESK
 [Desktop Entry]
 Type=Application
 Name=NimboMail
-GenericName=Correo
-Comment=Cliente de correo rápido, minimalista y privado
+GenericName=Email
+Comment=Fast, minimal and private email client for Linux
+Keywords=email;mail;imap;smtp;calendar;correo;
 Exec=$LANZADOR %U
 Icon=nimbomail
 StartupWMClass=nimbomail
@@ -61,7 +62,7 @@ DESK
 ANTERIOR=0
 if [ -e "$HOME/.local/lib/tuxmail" ] || [ -e "$DATOS/applications/tuxmail.desktop" ]; then
   ANTERIOR=1
-  echo "→ Quitando la instalación de TuxMail (el nombre anterior)…"
+  echo "→ Removing the TuxMail install (the previous name)…"
   rm -rf "$HOME/.local/lib/tuxmail" "$HOME/.local/bin/tuxmail" "$DATOS/applications/tuxmail.desktop" \
     "$DATOS/icons/hicolor/scalable/apps/tuxmail.svg"
   for t in 64 128 256; do rm -f "$DATOS/icons/hicolor/${t}x${t}/apps/tuxmail.png"; done
@@ -73,12 +74,12 @@ fi
 command -v update-desktop-database >/dev/null && update-desktop-database "$DATOS/applications" || true
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$DATOS/icons/hicolor" || true
 
-echo "✓ NimboMail instalado. Ábrelo desde el lanzador de apps o con «nimbomail»."
+echo "✓ NimboMail installed. Open it from your app launcher or run \"nimbomail\"."
 if [ "$ANTERIOR" = 1 ]; then
-  echo "  TuxMail ahora se llama NimboMail: sal de TuxMail del todo (Ctrl+Q) y abre NimboMail;"
-  echo "  tus cuentas, tu correo y tus ajustes se pasan solos. Si arrancabas «tuxmail --oculto» con la"
-  echo "  sesión (o tenías reglas de ventana con la clase tuxmail), cámbialo por nimbomail."
+  echo "  TuxMail is now called NimboMail: quit TuxMail completely (Ctrl+Q) and open NimboMail;"
+  echo "  your accounts, mail and settings move over automatically. If you started \"tuxmail --oculto\""
+  echo "  with your session (or had window rules for the tuxmail class), change them to nimbomail."
 else
-  echo "  Si tenías NimboMail abierto, ciérralo del todo (Ctrl+Q) y vuelve a abrirlo."
+  echo "  If NimboMail was running, quit it completely (Ctrl+Q) and open it again."
 fi
-echo "  Para que arranque con la sesión, en la bandeja: nimbomail --oculto"
+echo "  To start it with your session, in the tray only: nimbomail --hidden"

@@ -1793,7 +1793,8 @@ a.tb-boton {
   color: var(--texto);
   white-space: nowrap;
 }
-.cal-titulo::first-letter {
+/* En español los meses van en minúscula («noviembre 2026»); en inglés, con mayúscula. */
+:lang(es) .cal-titulo::first-letter {
   text-transform: lowercase;
 }
 .cal-modo {

@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "empaquetar": "electron-vite build && electron-builder --linux dir --publish never",
     "distribuir": "electron-vite build && electron-builder --linux AppImage tar.gz --publish never",
-    "instalar": "bash scripts/instalar.sh"
+    "instalar": "bash scripts/instalar.sh",
+    "install-app": "bash scripts/instalar.sh"
   },
   "dependencies": {
     "@browsermt/bergamot-translator": "0.4.9",

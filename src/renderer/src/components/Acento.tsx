@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useT } from '@/i18n'
 
-// Los colores de resaltado de NimboMail. Plata = Niebla, el de por defecto.
+// Los colores de resaltado de NimboMail. Plata = Niebla, el de por defecto. Los nombres, en t.acento.colores.
 export const ACENTOS = [
-  { id: 'plata', nombre: 'Plata (Niebla)', color: '#c8ccd0' },
-  { id: 'azul', nombre: 'Azul', color: '#4f8fe6' },
-  { id: 'morado', nombre: 'Morado', color: '#a37ad6' },
-  { id: 'rosa', nombre: 'Rosa', color: '#d9558f' },
-  { id: 'rojo', nombre: 'Rojo', color: '#d45d5d' },
-  { id: 'naranja', nombre: 'Naranja', color: '#d9873f' },
-  { id: 'verde', nombre: 'Verde', color: '#55a868' },
+  { id: 'plata', color: '#c8ccd0' },
+  { id: 'azul', color: '#4f8fe6' },
+  { id: 'morado', color: '#a37ad6' },
+  { id: 'rosa', color: '#d9558f' },
+  { id: 'rojo', color: '#d45d5d' },
+  { id: 'naranja', color: '#d9873f' },
+  { id: 'verde', color: '#55a868' },
 ] as const
 
 export type AcentoId = (typeof ACENTOS)[number]['id']
@@ -39,24 +40,25 @@ export function useAcento() {
 }
 
 export function SelectorAcento({ acento, onCambiar }: { acento: AcentoId; onCambiar: (a: AcentoId) => void }) {
+  const t = useT()
   const [hover, setHover] = useState<AcentoId | null>(null)
   const mostrado = ACENTOS.find((a) => a.id === (hover ?? acento))!
   return (
     <div>
-      <div className="menu-mas-titulo">Color de resaltado</div>
+      <div className="menu-mas-titulo">{t.acento.titulo}</div>
       <div className="colores" onMouseLeave={() => setHover(null)}>
         {ACENTOS.map((a) => (
           <button
             key={a.id}
             className={`color${a.id === acento ? ' activo' : ''}`}
             style={{ background: a.color }}
-            title={a.nombre}
+            title={t.acento.colores[a.id]}
             onMouseEnter={() => setHover(a.id)}
             onClick={() => onCambiar(a.id)}
           />
         ))}
       </div>
-      <div className="menu-mas-nombre">{mostrado.nombre}</div>
+      <div className="menu-mas-nombre">{t.acento.colores[mostrado.id]}</div>
     </div>
   )
 }

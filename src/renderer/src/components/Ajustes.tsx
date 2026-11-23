@@ -1,22 +1,24 @@
 import { useEffect, useState } from 'react'
 import { CalendarBlank, Columns, GearSix, Info, Key, Rows, SidebarSimple, Trash, UserCircle, X } from '@phosphor-icons/react'
-import { AVISOS, type CalendarioInfo, type Carpeta, type Cuenta, type Datos } from '@shared/tipos'
+import { AVISOS, textoAviso, type CalendarioInfo, type Carpeta, type Cuenta, type Datos } from '@shared/tipos'
+import { IDIOMAS, opcionesHora, type PreferenciaIdioma, type Textos } from '@shared/i18n'
 import { api } from '@/estado'
+import { useIdioma, useT } from '@/i18n'
 import { ACENTOS, SelectorAcento, type AcentoId } from '@/components/Acento'
 import type { Disposicion } from '@/components/Toolbar'
 import { Desplegable } from '@/components/Desplegable'
 
 type Seccion = 'general' | 'barra' | 'cuentas' | 'calendario' | 'acerca'
 
-// Lo que se puede ocultar de Favoritos y de Buzones inteligentes.
-export const FAVORITOS: { clave: string; texto: string }[] = [
-  { clave: 'fav:todas', texto: 'Todas las bandejas' },
-  { clave: 'fav:marcados', texto: 'Marcados' },
-  { clave: 'fav:borradores', texto: 'Todos los borradores' },
-  { clave: 'fav:enviados', texto: 'Todos los enviados' },
-  { clave: 'fav:calendario', texto: 'Calendario' },
-  { clave: 'fav:hoy', texto: 'Hoy (buzón inteligente)' },
-  { clave: 'fav:suscripciones', texto: 'Suscripciones (boletines)' },
+// Lo que se puede ocultar de Favoritos y de Buzones inteligentes, con su nombre en el idioma de `t`.
+export const favoritos = (t: Textos): { clave: string; texto: string }[] => [
+  { clave: 'fav:todas', texto: t.comun.buzones.todasBandejas },
+  { clave: 'fav:marcados', texto: t.comun.buzones.marcados },
+  { clave: 'fav:borradores', texto: t.comun.buzones.todosBorradores },
+  { clave: 'fav:enviados', texto: t.comun.buzones.todosEnviados },
+  { clave: 'fav:calendario', texto: t.comun.buzones.calendario },
+  { clave: 'fav:hoy', texto: t.ajustes.barra.hoy },
+  { clave: 'fav:suscripciones', texto: t.ajustes.barra.suscripciones },
 ]
 export const claveCarpeta = (c: Carpeta) => `carpeta:${c.id}`
 
@@ -48,6 +50,8 @@ export function Ajustes(p: {
   avisar: (t: string) => void
   onCerrar: () => void
 }) {
+  const t = useT()
+  const idioma = useIdioma()
   const [seccion, setSeccion] = useState<Seccion>('general')
   const [calendarios, setCalendarios] = useState<CalendarioInfo[]>([])
   const [quitando, setQuitando] = useState<string | null>(null)
@@ -76,18 +80,27 @@ export function Ajustes(p: {
       .sort((a, b) => ORDEN_ROL.indexOf(a.rol) - ORDEN_ROL.indexOf(b.rol) || a.nombre.localeCompare(b.nombre))
 
   const SECCIONES: { id: Seccion; texto: string; icono: typeof GearSix }[] = [
-    { id: 'general', texto: 'General', icono: GearSix },
-    { id: 'barra', texto: 'Barra lateral', icono: SidebarSimple },
-    { id: 'cuentas', texto: 'Cuentas', icono: UserCircle },
-    { id: 'calendario', texto: 'Calendario', icono: CalendarBlank },
-    { id: 'acerca', texto: 'Acerca de', icono: Info },
+    { id: 'general', texto: t.ajustes.secciones.general, icono: GearSix },
+    { id: 'barra', texto: t.ajustes.secciones.barra, icono: SidebarSimple },
+    { id: 'cuentas', texto: t.ajustes.secciones.cuentas, icono: UserCircle },
+    { id: 'calendario', texto: t.ajustes.secciones.calendario, icono: CalendarBlank },
+    { id: 'acerca', texto: t.ajustes.secciones.acerca, icono: Info },
+  ]
+
+  // «Automático» primero (con el idioma al que corresponde, si es el elegido) y luego cada idioma con su nombre.
+  const opcionesIdioma: { valor: PreferenciaIdioma; texto: string }[] = [
+    {
+      valor: 'auto',
+      texto: idioma.preferencia === 'auto' ? t.ajustes.general.idiomaAutoCon(t.ajustes.general.nombresIdioma[idioma.idioma]) : t.ajustes.general.idiomaAuto,
+    },
+    ...IDIOMAS.map((i) => ({ valor: i.id, texto: i.nombre })),
   ]
 
   return (
     <div className="redactar-fondo" onMouseDown={(e) => e.target === e.currentTarget && p.onCerrar()}>
       <div className="ajustes" onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), p.onCerrar())} tabIndex={-1}>
         <nav className="aj-nav">
-          <div className="aj-titulo">Ajustes</div>
+          <div className="aj-titulo">{t.ajustes.titulo}</div>
           {SECCIONES.map((s) => (
             <button key={s.id} className={seccion === s.id ? 'activa' : ''} onClick={() => setSeccion(s.id)}>
               <s.icono size={16} /> {s.texto}
@@ -95,41 +108,51 @@ export function Ajustes(p: {
           ))}
         </nav>
         <div className="aj-contenido">
-          <button className="aj-cerrar" onClick={p.onCerrar} aria-label="Cerrar">
+          <button className="aj-cerrar" onClick={p.onCerrar} aria-label={t.comun.acciones.cerrar}>
             <X size={15} />
           </button>
 
           {seccion === 'general' && (
             <>
-              <h2>General</h2>
+              <h2>{t.ajustes.secciones.general}</h2>
+              <div className="aj-grupo">
+                <div className="aj-fila">
+                  <span>{t.ajustes.general.idioma}</span>
+                  <Desplegable<PreferenciaIdioma> valor={idioma.preferencia} onCambiar={(v) => api.ponerIdioma(v)} opciones={opcionesIdioma} />
+                </div>
+                <div className="aj-nota">{t.ajustes.general.notaIdioma}</div>
+              </div>
               <div className="aj-grupo">
                 <SelectorAcento acento={p.acento} onCambiar={p.onAcento} />
               </div>
               <div className="aj-grupo">
-                <div className="aj-etiqueta">Disposición</div>
+                <div className="aj-etiqueta">{t.ajustes.general.disposicion}</div>
                 <div className="aj-opciones">
                   <button className={p.disposicion === 'columnas' ? 'elegida' : ''} onClick={() => p.onDisposicion('columnas')}>
-                    <Columns size={18} /> Lista y lector en columnas
+                    <Columns size={18} /> {t.ajustes.general.columnas}
                   </button>
                   <button className={p.disposicion === 'ancha' ? 'elegida' : ''} onClick={() => p.onDisposicion('ancha')}>
-                    <Rows size={18} /> Lista ancha
+                    <Rows size={18} /> {t.ajustes.general.ancha}
                   </button>
                 </div>
               </div>
-              <div className="aj-grupo">
-                <Interruptor etiqueta="Traducir siempre los correos en inglés" activo={p.traducirSiempre} onCambiar={p.onTraducirSiempre} />
-                <div className="aj-nota">Se traducen en este equipo con el motor de Firefox Translations. Atajo: Ctrl+Shift+T.</div>
-              </div>
+              {/* El único modelo de traducción es inglés → español: solo con la app en español. */}
+              {idioma.idioma === 'es' && (
+                <div className="aj-grupo">
+                  <Interruptor etiqueta={t.ajustes.general.traducirSiempre} activo={p.traducirSiempre} onCambiar={p.onTraducirSiempre} />
+                  <div className="aj-nota">{t.ajustes.general.notaTraducir}</div>
+                </div>
+              )}
             </>
           )}
 
           {seccion === 'barra' && (
             <>
-              <h2>Barra lateral</h2>
-              <p className="aj-nota">Elige qué se ve. También puedes ocultar una carpeta con clic derecho sobre ella.</p>
+              <h2>{t.ajustes.secciones.barra}</h2>
+              <p className="aj-nota">{t.ajustes.barra.nota}</p>
               <div className="aj-grupo">
-                <div className="aj-etiqueta">Favoritos</div>
-                {FAVORITOS.map((f) => (
+                <div className="aj-etiqueta">{t.comun.buzones.favoritos}</div>
+                {favoritos(t).map((f) => (
                   <Interruptor key={f.clave} etiqueta={f.texto} activo={visible(f.clave)} onCambiar={(v) => alternar(f.clave, v)} />
                 ))}
               </div>
@@ -143,7 +166,7 @@ export function Ajustes(p: {
               ))}
               {p.ocultos.size > 0 && (
                 <button className="aj-boton" onClick={() => p.onOcultos(new Set())}>
-                  Mostrar todo otra vez
+                  {t.ajustes.barra.mostrarTodo}
                 </button>
               )}
             </>
@@ -151,7 +174,7 @@ export function Ajustes(p: {
 
           {seccion === 'cuentas' && (
             <>
-              <h2>Cuentas</h2>
+              <h2>{t.ajustes.secciones.cuentas}</h2>
               {p.datos.cuentas.map((c) => {
                 const estado = p.datos.estados.find((e) => e.id === c.id)
                 return (
@@ -159,12 +182,14 @@ export function Ajustes(p: {
                     <div className="aj-cuenta-datos">
                       <b>{c.nombre}</b>
                       <span>
-                        {c.direccion} · {c.auth === 'clave' ? 'contraseña' : `inicio de sesión con ${c.auth === 'microsoft' ? 'Microsoft' : 'Google'}`}
-                        {estado && estado.estado !== 'listo' ? ` · ${estado.estado === 'sin-clave' ? 'falta la contraseña' : estado.estado === 'conectando' ? 'conectando…' : 'sin conexión'}` : ''}
+                        {c.direccion} · {c.auth === 'clave' ? t.ajustes.cuentas.clave : t.ajustes.cuentas.oauth(c.auth === 'microsoft' ? 'Microsoft' : 'Google')}
+                        {estado && estado.estado !== 'listo'
+                          ? ` · ${estado.estado === 'sin-clave' ? t.ajustes.cuentas.sinClave : estado.estado === 'conectando' ? t.ajustes.cuentas.conectando : t.ajustes.cuentas.sinConexion}`
+                          : ''}
                       </span>
                     </div>
                     <button className="aj-boton" onClick={() => (c.auth === 'clave' ? p.onClave(c.id) : api.volverAEntrar(c.id).catch((e: Error) => p.avisar(e.message)))}>
-                      <Key size={14} /> {c.auth === 'clave' ? 'Contraseña' : 'Volver a entrar'}
+                      <Key size={14} /> {c.auth === 'clave' ? t.ajustes.cuentas.botonClave : t.ajustes.cuentas.volverAEntrar}
                     </button>
                     {quitando === c.id ? (
                       <button
@@ -172,13 +197,13 @@ export function Ajustes(p: {
                         onClick={async () => {
                           await api.quitarCuenta(c.id)
                           setQuitando(null)
-                          p.avisar(`«${c.nombre}» quitada de NimboMail`)
+                          p.avisar(t.ajustes.cuentas.quitada(c.nombre))
                         }}
                       >
-                        ¿Seguro? Quitar
+                        {t.ajustes.cuentas.confirmarQuitar}
                       </button>
                     ) : (
-                      <button className="aj-boton" title="Quitar de NimboMail (el correo sigue en el servidor)" onClick={() => setQuitando(c.id)}>
+                      <button className="aj-boton" title={t.ajustes.cuentas.quitarTitulo} onClick={() => setQuitando(c.id)}>
                         <Trash size={14} />
                       </button>
                     )}
@@ -186,18 +211,18 @@ export function Ajustes(p: {
                 )
               })}
               <button className="aj-boton destacado" onClick={p.onAnadirCuenta}>
-                Añadir cuenta
+                {t.ajustes.cuentas.anadir}
               </button>
-              <p className="aj-nota">Quitar una cuenta borra de este equipo su configuración, su contraseña y su copia del correo. No toca nada del servidor.</p>
+              <p className="aj-nota">{t.ajustes.cuentas.nota}</p>
             </>
           )}
 
           {seccion === 'calendario' && (
             <>
-              <h2>Calendario</h2>
+              <h2>{t.ajustes.secciones.calendario}</h2>
               <div className="aj-grupo">
                 <div className="aj-fila">
-                  <span>Aviso por defecto de las reuniones (invitaciones)</span>
+                  <span>{t.ajustes.calendario.avisoReuniones}</span>
                   <Desplegable<number>
                     valor={avisoReuniones ?? 10}
                     onCambiar={(v) => {
@@ -205,59 +230,58 @@ export function Ajustes(p: {
                       api.ponerAvisoReuniones(v)
                     }}
                     opciones={[
-                      { valor: -1, texto: 'Sin aviso' },
-                      ...AVISOS.filter((a) => a.minutos <= 1440).map((a) => ({ valor: a.minutos, texto: a.minutos === 0 ? a.texto : `${a.texto} antes` })),
+                      { valor: -1, texto: t.ajustes.calendario.sinAviso },
+                      ...AVISOS.filter((m) => m <= 1440).map((m) => ({ valor: m, texto: m === 0 ? textoAviso(m, t) : t.ajustes.calendario.antes(textoAviso(m, t)) })),
                     ]}
                   />
                 </div>
-                <div className="aj-nota">Cada evento puede tener los suyos con la campana. Los avisos salen como notificación del sistema.</div>
+                <div className="aj-nota">{t.ajustes.calendario.notaAvisos}</div>
               </div>
-              {calendarios.length === 0 && <p className="aj-nota">Todavía no hay calendarios: las invitaciones que te lleguen por correo aparecerán solas.</p>}
+              {calendarios.length === 0 && <p className="aj-nota">{t.ajustes.calendario.sinCalendarios}</p>}
               {calendarios.map((c) => (
                 <div className="aj-cuenta" key={c.id}>
                   <span className="aj-punto" style={{ background: c.color }} />
                   <div className="aj-cuenta-datos">
                     <b>{c.nombre}</b>
                     <span>
-                      {c.tipo === 'invitaciones' ? 'Invitaciones recibidas por correo' : c.tipo === 'propio' ? 'Tus eventos y notas, creados en NimboMail' : 'Calendario suscrito (iCal)'}
-                      {c.error ? ` · error: ${c.error}` : c.actualizado ? ` · actualizado ${new Date(c.actualizado).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                      {c.tipo === 'invitaciones' ? t.ajustes.calendario.invitaciones : c.tipo === 'propio' ? t.ajustes.calendario.propio : t.ajustes.calendario.ical}
+                      {c.error
+                        ? ` · ${t.ajustes.calendario.error(c.error)}`
+                        : c.actualizado
+                          ? ` · ${t.ajustes.calendario.actualizado(new Date(c.actualizado).toLocaleString(idioma.locale, { day: 'numeric', month: 'short', ...opcionesHora(idioma.locale) }))}`
+                          : ''}
                     </span>
                   </div>
-                  <div className="aj-colores" title="Color del calendario">
+                  <div className="aj-colores" title={t.ajustes.calendario.color}>
                     {[...new Set(['#c8ccd0', '#8b98a6', ...ACENTOS.map((a) => a.color)])].map((col) => (
                       <button
                         key={col}
                         className={c.color.toLowerCase() === col.toLowerCase() ? 'elegido' : ''}
                         style={{ background: col }}
-                        aria-label={`Color ${col}`}
+                        aria-label={t.ajustes.calendario.colorDe(col)}
                         onClick={() => api.colorCalendario(c.id, col).then(() => api.calendarios().then(setCalendarios))}
                       />
                     ))}
                   </div>
                   <Interruptor etiqueta="" activo={c.visible} onCambiar={(v) => api.mostrarCalendario(c.id, v).then(() => api.calendarios().then(setCalendarios))} />
                   {c.tipo === 'ical' && (
-                    <button className="aj-boton" title="Quitar la suscripción" onClick={() => api.quitarCalendario(c.id)}>
+                    <button className="aj-boton" title={t.ajustes.calendario.quitarSuscripcion} onClick={() => api.quitarCalendario(c.id)}>
                       <Trash size={14} />
                     </button>
                   )}
                 </div>
               ))}
-              <p className="aj-nota">
-                Las reuniones se colorean según su plataforma: Google Meet en verde, Teams en morado, Zoom en azul y Webex en naranja. El
-                resto toma el color de su calendario.
-              </p>
-              <p className="aj-nota">
-                Para suscribirte a otro calendario, pulsa «+» en la vista Calendario. Las reuniones se exportan a ~/.local/share/nimbomail/calendario.ics para otros calendarios del escritorio.
-              </p>
+              <p className="aj-nota">{t.ajustes.calendario.notaColores}</p>
+              <p className="aj-nota">{t.ajustes.calendario.notaSuscribir}</p>
             </>
           )}
 
           {seccion === 'acerca' && (
             <>
-              <h2>NimboMail</h2>
-              <p className="aj-nota">Cliente de correo para Linux: rápido, minimalista y privado. Software libre bajo la licencia GNU GPL v3 o posterior.</p>
+              <h2>{t.comun.app}</h2>
+              <p className="aj-nota">{t.ajustes.acerca.descripcion}</p>
               <button className="aj-boton" onClick={() => api.abrirEnlace('https://github.com/hxst1/nimbomail')}>
-                Código fuente en GitHub
+                {t.ajustes.acerca.codigo}
               </button>
             </>
           )}

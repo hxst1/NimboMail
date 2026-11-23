@@ -21,6 +21,8 @@ import { Calendario } from './calendario'
 import { respuesta as respuestaIcs } from './ics'
 import { Portapapeles } from './portapapeles'
 import { Smtp } from './smtp'
+import { opcionesHora } from '@shared/i18n'
+import { estadoIdioma, t } from './idioma'
 import * as demo from './demo'
 
 type Deshacer =
@@ -67,7 +69,7 @@ export class Servicio extends EventEmitter {
     // Adjuntos de correos grandes que aún no están en disco: los baja el motor de su cuenta.
     ponerDescargador((id, parte) => {
       const m = this.motores.get(id.split('\u0000')[0])
-      if (!m) throw new Error('Cuenta no disponible')
+      if (!m) throw new Error(t().principal.cuentas.noDisponible)
       return m.descargarParte(id, parte)
     })
   }
@@ -128,10 +130,10 @@ export class Servicio extends EventEmitter {
 
   /** Abre el navegador para entrar con Microsoft (o Google) y prueba la conexión con el token. */
   async entrarConOAuth(id: IdOAuth, email: string, s: Servidores) {
-    const t = await iniciarSesion(id, email)
-    if (!t.renovacion) throw new Error('El proveedor no dio permiso para seguir conectado')
-    this.oauthPendiente.set(email.toLowerCase(), t.renovacion)
-    return probar(s, { accessToken: t.acceso })
+    const tok = await iniciarSesion(id, email)
+    if (!tok.renovacion) throw new Error(t().principal.oauth.sinRenovacion)
+    this.oauthPendiente.set(email.toLowerCase(), tok.renovacion)
+    return probar(s, { accessToken: tok.acceso })
   }
 
   probarCuenta(s: Servidores, clave: string) {
@@ -140,9 +142,9 @@ export class Servicio extends EventEmitter {
 
   async anadirCuenta(d: { nombre: string; etiqueta: string; direccion: string; servidores: Servidores; auth: TipoAuth; clave?: string }) {
     const direccion = d.direccion.trim().toLowerCase()
-    if (this.cuentas.some((c) => c.direccion === direccion)) throw new Error('Esa cuenta ya está en NimboMail')
+    if (this.cuentas.some((c) => c.direccion === direccion)) throw new Error(t().principal.cuentas.yaExiste)
     const valor = d.auth === 'clave' ? d.clave : this.oauthPendiente.get(direccion)
-    if (!valor) throw new Error(d.auth === 'clave' ? 'Falta la contraseña' : 'Hay que iniciar sesión primero')
+    if (!valor) throw new Error(d.auth === 'clave' ? t().principal.cuentas.faltaClave : t().principal.cuentas.iniciarSesionPrimero)
     await guardarSecreto(direccion, valor)
     this.oauthPendiente.delete(direccion)
     // id corto y estable a partir del nombre de la cuenta («Trabajo» → «trabajo», «trabajo-2»…)
@@ -187,7 +189,7 @@ export class Servicio extends EventEmitter {
 
   async cambiarClave(id: string, clave: string) {
     const c = this.cuentas.find((x) => x.id === id)
-    if (!c) throw new Error('Cuenta no encontrada')
+    if (!c) throw new Error(t().principal.cuentas.noEncontrada)
     const r = await probar({ imap: c.imap, puerto: c.puerto, smtp: c.smtp, smtpPuerto: c.smtpPuerto, usuario: c.usuario, tlsNombre: c.tlsNombre }, { pass: clave })
     if (!r.ok && r.motivo === 'clave') return r
     await guardarSecreto(c.direccion, clave)
@@ -198,9 +200,9 @@ export class Servicio extends EventEmitter {
   /** Vuelve a iniciar sesión (OAuth caducado o revocado). */
   async volverAEntrar(id: string) {
     const c = this.cuentas.find((x) => x.id === id)
-    if (!c || c.auth === 'clave') throw new Error('Esta cuenta usa contraseña')
-    const t = await iniciarSesion(c.auth, c.direccion)
-    if (t.renovacion) await guardarSecreto(c.direccion, t.renovacion)
+    if (!c || c.auth === 'clave') throw new Error(t().principal.cuentas.usaClave)
+    const tok = await iniciarSesion(c.auth, c.direccion)
+    if (tok.renovacion) await guardarSecreto(c.direccion, tok.renovacion)
     this.arrancarMotor(c)
   }
 
@@ -220,8 +222,7 @@ export class Servicio extends EventEmitter {
     }
     if (e.tipo === 'nuevos') return this.emit('nuevos', e.ids.map((id) => this.db.mensaje(id)).filter(Boolean))
     if (e.tipo === 'estado') {
-      const sinClave = e.detalle?.includes('Falta la contraseña')
-      this.estados.set(cuenta, { id: cuenta, estado: sinClave ? 'sin-clave' : e.estado, detalle: e.detalle })
+      this.estados.set(cuenta, { id: cuenta, estado: e.sinClave ? 'sin-clave' : e.estado, detalle: e.detalle })
       this.cambios()
     }
   }
@@ -241,7 +242,10 @@ export class Servicio extends EventEmitter {
     const cuentas = this.demo
       ? demo.cuentas
       : this.cuentas.map((c) => ({ id: c.id, nombre: c.etiqueta, direccion: c.direccion, remitente: c.nombre, auth: c.auth }))
-    return { cuentas, carpetas: this.db.carpetas(), estados: [...this.estados.values()] }
+    // Las carpetas especiales, con su nombre en el idioma de la app (en la base va el del día que se sincronizó).
+    const roles = t().comun.roles
+    const carpetas = this.db.carpetas().map((c) => (c.rol !== 'normal' && c.rol in roles ? { ...c, nombre: roles[c.rol as keyof typeof roles] } : c))
+    return { cuentas, carpetas, estados: [...this.estados.values()] }
   }
 
   lista(buzon: Buzon, busqueda: string): Mensaje[] {
@@ -264,10 +268,10 @@ export class Servicio extends EventEmitter {
 
   async cuerpo(id: string): Promise<Cuerpo> {
     const m = this.db.mensaje(id)
-    if (!m) throw new Error('Mensaje no encontrado')
+    if (!m) throw new Error(t().principal.mensajes.noEncontrado)
     if (this.demo) return demo.cuerpoDemo(m)
     const motor = this.motores.get(m.cuenta)
-    if (!motor) throw new Error('Cuenta no disponible')
+    if (!motor) throw new Error(t().principal.cuentas.noDisponible)
     return motor.cuerpo(id)
   }
 
@@ -307,7 +311,7 @@ export class Servicio extends EventEmitter {
 
   private config(cuenta: string) {
     const c = this.cuentas.find((x) => x.id === cuenta)
-    if (!c) throw new Error('Cuenta no disponible')
+    if (!c) throw new Error(t().principal.cuentas.noDisponible)
     return c
   }
 
@@ -315,7 +319,7 @@ export class Servicio extends EventEmitter {
   async prepararRespuesta(id: string, tipo: 'responder' | 'responderTodos' | 'reenviar'): Promise<DatosRespuesta> {
     const m = this.db.mensaje(id)
     const cab = this.db.cabeceras(id)
-    if (!m || !cab) throw new Error('Mensaje no encontrado')
+    if (!m || !cab) throw new Error(t().principal.mensajes.noEncontrado)
     const yo = (this.cuentas.find((c) => c.id === m.cuenta)?.direccion ?? '').toLowerCase()
     const mio = m.de.direccion.toLowerCase() === yo
     const sinRepetir = (l: Direccion[], fuera: string[] = []) => {
@@ -330,7 +334,7 @@ export class Servicio extends EventEmitter {
       if (tipo === 'responderTodos') cc = sinRepetir(mio ? m.cc : [...m.para, ...m.cc], [yo, ...para.map((d) => d.direccion)])
     }
     const base = m.asunto.replace(/^((re|rv|fw|fwd|reenviado)\s*:\s*)+/i, '')
-    const fecha = new Date(m.fecha).toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const fecha = new Date(m.fecha).toLocaleString(estadoIdioma().locale, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', ...opcionesHora(estadoIdioma().locale) })
     const quien = m.de.nombre ? `${m.de.nombre} <${m.de.direccion}>` : m.de.direccion
     const lista = (l: Direccion[]) => l.map((d) => (d.nombre ? `${d.nombre} <${d.direccion}>` : d.direccion)).join(', ')
     const cuerpo = tipo === 'reenviar' ? await this.cuerpo(id).catch(() => null) : null
@@ -344,8 +348,8 @@ export class Servicio extends EventEmitter {
       respondeA: id,
       cabeceraCita:
         tipo === 'reenviar'
-          ? `---------- Mensaje reenviado ----------\nDe: ${quien}\nFecha: ${fecha}\nAsunto: ${m.asunto}\nPara: ${lista(m.para)}${m.cc.length ? `\nCC: ${lista(m.cc)}` : ''}`
-          : `El ${fecha}, ${quien} escribió:`,
+          ? t().principal.citas.reenvio({ de: quien, fecha, asunto: m.asunto, para: lista(m.para), cc: m.cc.length ? lista(m.cc) : null })
+          : t().principal.citas.respuesta(fecha, quien),
       adjuntos: cuerpo?.adjuntos.filter((a) => !a.inline) ?? [],
     }
   }
@@ -367,7 +371,7 @@ export class Servicio extends EventEmitter {
       const ruta = this.db.rutaPorRol(b.cuenta, 'sent')
       if (ruta) {
         const raw = await this.smtp.construir(c, b, ids)
-        await motor.anexar(ruta, raw, ['\\Seen']).catch((e) => this.fallo('Enviado, pero no se pudo guardar en Enviados', e))
+        await motor.anexar(ruta, raw, ['\\Seen']).catch((e) => this.fallo(t().principal.mensajes.enviadoSinCopia, e))
       }
     }
     if (b.respondeA) motor?.marcarRespondido(b.respondeA).catch(() => {})
@@ -382,7 +386,7 @@ export class Servicio extends EventEmitter {
     const c = this.config(b.cuenta)
     const motor = this.motores.get(b.cuenta)
     const ruta = this.db.rutaPorRol(b.cuenta, 'drafts')
-    if (!motor || !ruta) throw new Error('La cuenta no tiene carpeta de borradores')
+    if (!motor || !ruta) throw new Error(t().principal.mensajes.sinCarpetaBorradores)
     const raw = await this.smtp.construir(c, b, this.smtp.nuevosIds(c))
     const uid = await motor.anexar(ruta, raw, ['\\Draft', '\\Seen'])
     if (b.borradorId) await this.descartarBorrador(b.borradorId).catch(() => {})
@@ -401,7 +405,7 @@ export class Servicio extends EventEmitter {
   async abrirBorrador(id: string): Promise<Borrador> {
     const u = this.db.ubicacion(id)
     const motor = u && this.motores.get(u.cuenta)
-    if (!u || !motor) throw new Error('Borrador no disponible')
+    if (!u || !motor) throw new Error(t().principal.mensajes.borradorNoDisponible)
     const p = await simpleParser(await motor.fuente(id))
     const dirs = (a?: AddressObject | AddressObject[]) =>
       (Array.isArray(a) ? a : a ? [a] : []).flatMap((x) => x.value).map((v) => ({ nombre: v.name ?? '', direccion: v.address ?? '' }))
@@ -409,9 +413,9 @@ export class Servicio extends EventEmitter {
     const adjuntos: AdjuntoBorrador[] = []
     for (const a of p.attachments.filter((x) => !x.related)) {
       await mkdir(dir, { recursive: true })
-      const ruta = join(dir, (a.filename ?? 'adjunto').replace(/[/\\\0]/g, '_'))
+      const ruta = join(dir, (a.filename ?? t().principal.nombres.adjunto).replace(/[/\\\0]/g, '_'))
       await writeFile(ruta, a.content)
-      adjuntos.push({ nombre: a.filename ?? 'adjunto', tamano: a.size, tipo: a.contentType, ruta })
+      adjuntos.push({ nombre: a.filename ?? t().principal.nombres.adjunto, tamano: a.size, tipo: a.contentType, ruta })
     }
     const refs = p.references ? (Array.isArray(p.references) ? p.references : [p.references]) : []
     return {
@@ -435,7 +439,7 @@ export class Servicio extends EventEmitter {
       if (!/^file:\/\//.test(u)) continue
       const ruta = fileURLToPath(u)
       const s = await stat(ruta).catch(() => null)
-      if (s?.isFile()) out.push({ nombre: ruta.split('/').pop() ?? 'archivo', tamano: s.size, ruta })
+      if (s?.isFile()) out.push({ nombre: ruta.split('/').pop() ?? t().principal.nombres.archivo, tamano: s.size, ruta })
     }
     return out
   }
@@ -497,7 +501,7 @@ export class Servicio extends EventEmitter {
     if (!metodo && this.demo) metodo = info.unClic ? 'un-clic' : info.correo ? 'correo' : 'web'
     if (!metodo) {
       const web = info.web[0]
-      if (!web) throw new Error('Este remitente no ofrece forma de darse de baja')
+      if (!web) throw new Error(t().principal.bajas.remitenteSinBaja)
       await shell.openExternal(web)
       metodo = 'web'
     }
@@ -508,13 +512,13 @@ export class Servicio extends EventEmitter {
 
   async darseDeBajaDe(id: string) {
     const b = this.db.bajaDe(id)
-    if (!b?.baja) throw new Error('Este correo no ofrece forma de darse de baja')
+    if (!b?.baja) throw new Error(t().principal.bajas.correoSinBaja)
     return this.darseDeBaja(b.cuenta, b.clave, JSON.parse(b.baja) as InfoBaja)
   }
 
   async darseDeBajaClave(cuenta: string, clave: string) {
     const s = this.db.suscripciones().find((x) => x.cuenta === cuenta && x.clave === clave)
-    if (!s) throw new Error('Suscripción no encontrada')
+    if (!s) throw new Error(t().principal.bajas.suscripcionNoEncontrada)
     return this.darseDeBaja(cuenta, clave, JSON.parse(s.baja) as InfoBaja)
   }
 
@@ -536,15 +540,15 @@ export class Servicio extends EventEmitter {
   /** Aceptar, quizá o rechazar: responde al organizador (iMIP) y lo apunta. */
   async responderInvitacion(id: string, partstat: 'ACCEPTED' | 'TENTATIVE' | 'DECLINED') {
     const e = this.calendario.evento(id)
-    if (!e) throw new Error('Invitación no encontrada')
+    if (!e) throw new Error(t().principal.invitaciones.noEncontrada)
     if (!this.demo && e.ev.organizador?.direccion && e.cuenta) {
       const c = this.config(e.cuenta)
       const quien = c.nombre || c.direccion
-      const verbo = { ACCEPTED: ['Aceptado', 'ha aceptado'], TENTATIVE: ['Quizá', 'quizá asista a'], DECLINED: ['Rechazado', 'ha rechazado'] }[partstat]
+      const textos = t().principal.invitaciones
       await this.smtp.enviarIcal(c, {
         para: { nombre: e.ev.organizador.nombre, direccion: e.ev.organizador.direccion },
-        asunto: `${verbo[0]}: ${e.ev.titulo}`,
-        texto: `${quien} ${verbo[1]} la invitación «${e.ev.titulo}».`,
+        asunto: textos.asunto[partstat](e.ev.titulo),
+        texto: textos.texto[partstat](quien, e.ev.titulo),
         ical: respuestaIcs(e.ev, { nombre: c.nombre, direccion: c.direccion }, partstat),
       })
     }
@@ -583,7 +587,7 @@ export class Servicio extends EventEmitter {
         } catch (err) {
           const p = previo.get(id)
           if (p) this.db.flags(id, p)
-          this.fallo('No se pudo cambiar el mensaje', err)
+          this.fallo(t().principal.mensajes.noCambiar, err)
         }
       }),
     )
@@ -626,7 +630,7 @@ export class Servicio extends EventEmitter {
             // Vuelve a su sitio con su UID de siempre.
             this.db.moverMensaje(provisional, u.carpeta, u.uid)
             movidos.splice(movidos.indexOf(entrada), 1)
-            this.fallo('No se pudo mover el mensaje', err)
+            this.fallo(t().principal.mensajes.noMover, err)
           }
           this.cambios()
         })(),

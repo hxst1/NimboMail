@@ -7,6 +7,8 @@ import { join } from 'node:path'
 import type { CalendarioInfo, Instancia } from '@shared/tipos'
 import type { Db } from './db'
 import { borrarSecreto, guardarSecreto, secreto } from './cuentas'
+import { opcionesHora } from '@shared/i18n'
+import { estadoIdioma, t } from './idioma'
 import { calendario as envolver, eventoExportado, leerEventos, leerIcs, repeticiones, type EventoIcs } from './ics'
 
 const ESQUEMA = `
@@ -143,7 +145,7 @@ export class Calendario extends EventEmitter {
         actualizado: number | null
         error: string | null
       }[]
-    ).map((c) => ({ ...c, visible: !!c.visible }))
+    ).map((c) => ({ ...c, visible: !!c.visible, nombre: c.tipo === 'propio' ? t().principal.calendario.misEventos : c.nombre }))
   }
 
   private colorLibre(tipo?: 'ical'): string {
@@ -352,8 +354,8 @@ export class Calendario extends EventEmitter {
 
   private asegurarPropio(): string {
     this.db.sql
-      .prepare("INSERT OR IGNORE INTO calendarios (id, nombre, tipo, color) VALUES (?, 'Mis eventos', 'propio', ?)")
-      .run(PROPIO, this.colorLibre())
+      .prepare("INSERT OR IGNORE INTO calendarios (id, nombre, tipo, color) VALUES (?, ?, 'propio', ?)")
+      .run(PROPIO, t().principal.calendario.misEventos, this.colorLibre())
     return PROPIO
   }
 
@@ -378,7 +380,7 @@ export class Calendario extends EventEmitter {
     const ev: EventoIcs = {
       uid,
       recurrencia: null,
-      titulo: d.titulo.trim() || '(Sin título)',
+      titulo: d.titulo.trim() || t().principal.calendario.sinTitulo,
       inicio,
       fin,
       todoElDia: d.todoElDia,
@@ -409,7 +411,7 @@ export class Calendario extends EventEmitter {
   }
 
   borrarEvento(id: string) {
-    if (!id.startsWith(`${PROPIO}:`)) throw new Error('Solo se pueden borrar los eventos propios')
+    if (!id.startsWith(`${PROPIO}:`)) throw new Error(t().principal.calendario.soloPropios)
     this.db.sql.prepare('DELETE FROM eventos WHERE id = ?').run(id)
     this.db.sql.prepare('DELETE FROM avisos WHERE evento = ?').run(id)
     this.db.sql.prepare('DELETE FROM invitaciones_correo WHERE evento = ?').run(id)
@@ -457,14 +459,14 @@ export class Calendario extends EventEmitter {
 
   private async descargar(url: string): Promise<string> {
     const u = url.trim().replace(/^webcals?:\/\//i, 'https://')
-    if (!/^https:\/\//i.test(u)) throw new Error('El enlace tiene que empezar por https:// o webcal://')
+    if (!/^https:\/\//i.test(u)) throw new Error(t().principal.calendario.enlaceHttps)
     const r = await fetch(u, { headers: { 'User-Agent': 'NimboMail' }, signal: AbortSignal.timeout(25_000) })
-    if (!r.ok) throw new Error(`El servidor respondió ${r.status}`)
-    if (Number(r.headers.get('content-length') ?? 0) > MAX_FEED) throw new Error('El calendario es demasiado grande')
-    const t = await r.text()
-    if (t.length > MAX_FEED) throw new Error('El calendario es demasiado grande')
-    if (!t.slice(0, 2000).includes('BEGIN:VCALENDAR')) throw new Error('El enlace no es un calendario iCal')
-    return t
+    if (!r.ok) throw new Error(t().principal.calendario.servidorRespondio(r.status))
+    if (Number(r.headers.get('content-length') ?? 0) > MAX_FEED) throw new Error(t().principal.calendario.demasiadoGrande)
+    const ics = await r.text()
+    if (ics.length > MAX_FEED) throw new Error(t().principal.calendario.demasiadoGrande)
+    if (!ics.slice(0, 2000).includes('BEGIN:VCALENDAR')) throw new Error(t().principal.calendario.noEsIcal)
+    return ics
   }
 
   private guardarFeed(id: string, ics: string) {
@@ -495,7 +497,7 @@ export class Calendario extends EventEmitter {
     const id = `ical-${randomBytes(4).toString('hex')}`
     this.db.sql
       .prepare("INSERT INTO calendarios (id, nombre, tipo, color) VALUES (?, ?, 'ical', ?)")
-      .run(id, nombre.trim() || 'Calendario', this.colorLibre('ical'))
+      .run(id, nombre.trim() || t().comun.buzones.calendario, this.colorLibre('ical'))
     await guardarSecreto(claveSecreto(id), url.trim())
     this.guardarFeed(id, ics)
     this.cambiado()
@@ -570,18 +572,20 @@ export class Calendario extends EventEmitter {
   }
 }
 
-/** «Empieza en 10 minutos · 16:00–16:45», «Mañana a las 10:00»… */
+/** «Empieza en 10 minutos · 16:00–16:45», «Mañana a las 10:00»… (en el idioma de la app) */
 function textoAviso(e: Instancia, ahora: number): string {
-  const h = (ms: number) => new Date(ms).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-  const franja = e.todoElDia ? 'Todo el día' : `${h(e.inicio)}–${h(e.fin)}`
+  const tx = t().principal.aviso
+  const locale = estadoIdioma().locale
+  const h = (ms: number) => new Date(ms).toLocaleTimeString(locale, opcionesHora(locale))
+  const franja = e.todoElDia ? tx.todoElDia : `${h(e.inicio)}–${h(e.fin)}`
   const falta = Math.round((e.inicio - ahora) / 60_000)
   const dia = (ms: number) => new Date(ms).toDateString()
   const manana = new Date(ahora + 86_400_000).toDateString()
   let cuando: string
-  if (!e.todoElDia && falta <= 1) cuando = 'Empieza ahora'
-  else if (!e.todoElDia && falta < 60) cuando = `Empieza en ${falta} minutos`
-  else if (dia(e.inicio) === dia(ahora)) cuando = e.todoElDia ? 'Hoy' : `Hoy a las ${h(e.inicio)}`
-  else if (dia(e.inicio) === manana) cuando = e.todoElDia ? 'Mañana' : `Mañana a las ${h(e.inicio)}`
-  else cuando = new Date(e.inicio).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+  if (!e.todoElDia && falta <= 1) cuando = tx.empiezaAhora
+  else if (!e.todoElDia && falta < 60) cuando = tx.empiezaEn(falta)
+  else if (dia(e.inicio) === dia(ahora)) cuando = e.todoElDia ? tx.hoy : tx.hoyA(h(e.inicio))
+  else if (dia(e.inicio) === manana) cuando = e.todoElDia ? tx.manana : tx.mananaA(h(e.inicio))
+  else cuando = new Date(e.inicio).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
   return [cuando, franja, e.lugar && !e.lugar.startsWith('http') ? e.lugar : ''].filter(Boolean).join(' · ')
 }

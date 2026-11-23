@@ -4,8 +4,10 @@ import {
   LinkSimple, ListBullets, ListNumbers, PaperPlaneTilt, Paperclip, TextB, TextItalic, TextUnderline, Trash, X,
 } from '@phosphor-icons/react'
 import type { AdjuntoBorrador, Borrador, Cuenta, Direccion } from '@shared/tipos'
+import type { Textos } from '@shared/i18n'
 import { api } from '@/estado'
 import { tamano } from '@/formato'
+import { useT } from '@/i18n'
 import type { OpcionesRedactar } from '@/components/MenuContextual'
 import { Desplegable } from '@/components/Desplegable'
 
@@ -47,6 +49,7 @@ function CampoDirecciones({
   autoFocus?: boolean
   extra?: React.ReactNode
 }) {
+  const t = useT()
   const [texto, setTexto] = useState('')
   const [sugerencias, setSugerencias] = useState<Direccion[]>([])
   const [activa, setActiva] = useState(0)
@@ -95,7 +98,7 @@ function CampoDirecciones({
         {valor.map((d) => (
           <span key={d.direccion} className="ficha" title={d.direccion}>
             {d.nombre || d.direccion}
-            <button onClick={() => onCambiar(valor.filter((x) => x !== d))} aria-label="Quitar">
+            <button onClick={() => onCambiar(valor.filter((x) => x !== d))} aria-label={t.comun.acciones.quitar}>
               <X size={10} weight="bold" />
             </button>
           </span>
@@ -141,12 +144,15 @@ export function Redactar({
   onCerrar: () => void
   avisar: (t: string) => void
 }) {
+  const t = useT()
+  const tr = t.redactar
   const [b, setB] = useState<Borrador | null>(null)
   const [verCco, setVerCco] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sinAsunto, setSinAsunto] = useState(false)
-  const [estadoGuardado, setEstadoGuardado] = useState('')
+  // Se guarda qué pasó, no el texto: así sale en el idioma actual.
+  const [estadoGuardado, setEstadoGuardado] = useState<'' | keyof Textos['redactar']['guardado']>('')
   const [enlace, setEnlace] = useState<{ url: string; rango: Range | null } | null>(null)
   const editor = useRef<HTMLDivElement>(null)
   const sucio = useRef(false)
@@ -233,17 +239,17 @@ export function Redactar({
     const x = conCuerpo()
     if (!x || !sucio.current) return
     sucio.current = false
-    setEstadoGuardado('Guardando…')
+    setEstadoGuardado('guardando')
     guardando.current = api
       .guardarBorrador(x)
       .then((id) => {
         if (actual.current) actual.current.borradorId = id
         setB((y) => (y ? { ...y, borradorId: id } : y))
-        setEstadoGuardado('Guardado en Borradores')
+        setEstadoGuardado('guardado')
       })
       .catch(() => {
         sucio.current = true
-        setEstadoGuardado('No se pudo guardar el borrador')
+        setEstadoGuardado('error')
       })
       .finally(() => (guardando.current = null))
     await guardando.current
@@ -263,7 +269,7 @@ export function Redactar({
     const vacio = !b || (!b.para.length && !b.asunto && !(editor.current?.innerText.trim() ?? '') && !b.adjuntos.length)
     if (!vacio && sucio.current) {
       await guardar()
-      avisar('Guardado en Borradores')
+      avisar(tr.guardado.guardado)
     }
     onCerrar()
   }
@@ -280,7 +286,7 @@ export function Redactar({
   const enviar = async () => {
     const x = conCuerpo()
     if (!x || enviando) return
-    if (!x.para.length && !x.cc.length && !x.cco.length) return setError('Falta al menos un destinatario')
+    if (!x.para.length && !x.cc.length && !x.cco.length) return setError(tr.faltaDestinatario)
     if (!x.asunto.trim() && !sinAsunto) return setSinAsunto(true)
     setError(null)
     setEnviando(true)
@@ -288,10 +294,10 @@ export function Redactar({
     try {
       if (guardando.current) await guardando.current
       await api.enviar({ ...x, borradorId: actual.current?.borradorId ?? x.borradorId })
-      avisar('Mensaje enviado')
+      avisar(tr.enviado)
       onCerrar()
     } catch (e) {
-      setError(`No se pudo enviar: ${(e as Error).message}`)
+      setError(tr.noSeEnvio((e as Error).message))
       setEnviando(false)
     }
   }
@@ -306,7 +312,7 @@ export function Redactar({
     const out: AdjuntoBorrador[] = []
     for (const f of archivos) {
       const ruta = window.niebla.rutaDeArchivo(f)
-      out.push(ruta ? { nombre: f.name, tamano: f.size, tipo: f.type, ruta } : { nombre: f.name || 'archivo', tamano: f.size, tipo: f.type, datos: new Uint8Array(await f.arrayBuffer()) })
+      out.push(ruta ? { nombre: f.name, tamano: f.size, tipo: f.type, ruta } : { nombre: f.name || tr.archivoSinNombre, tamano: f.size, tipo: f.type, datos: new Uint8Array(await f.arrayBuffer()) })
     }
     return out
   }
@@ -350,7 +356,7 @@ export function Redactar({
   }
 
   const titulo =
-    opciones.tipo === 'nuevo' ? 'Mensaje nuevo' : opciones.tipo === 'borrador' ? 'Borrador' : b?.asunto || 'Respuesta'
+    opciones.tipo === 'nuevo' ? tr.titulo.nuevo : opciones.tipo === 'borrador' ? tr.titulo.borrador : b?.asunto || tr.titulo.respuesta
 
   return (
     <div className="redactar-fondo" onMouseDown={(e) => e.target === e.currentTarget && cerrar()}>
@@ -375,15 +381,15 @@ export function Redactar({
       >
         <header className="redactar-cabeza">
           <span className="redactar-titulo">{titulo}</span>
-          <span className="redactar-estado">{estadoGuardado}</span>
-          <button className="icono" title="Descartar" onClick={descartar}>
+          <span className="redactar-estado">{estadoGuardado && tr.guardado[estadoGuardado]}</span>
+          <button className="icono" title={tr.descartar} onClick={descartar}>
             <Trash size={16} />
           </button>
-          <button className="icono" title="Cerrar (se guarda en Borradores)" onClick={cerrar}>
+          <button className="icono" title={tr.cerrar} onClick={cerrar}>
             <X size={16} />
           </button>
           <button className="enviar" onClick={enviar} disabled={enviando || !b}>
-            <PaperPlaneTilt size={15} weight="fill" /> {enviando ? 'Enviando…' : sinAsunto ? 'Enviar sin asunto' : 'Enviar'}
+            <PaperPlaneTilt size={15} weight="fill" /> {enviando ? tr.enviando : sinAsunto ? tr.enviarSinAsunto : tr.enviar}
           </button>
         </header>
 
@@ -391,7 +397,7 @@ export function Redactar({
           <>
             {cuentas.length > 1 && (
               <div className="campo">
-                <label>De</label>
+                <label>{tr.campos.de}</label>
                 <Desplegable<string>
                   valor={b.cuenta}
                   onCambiar={(cuenta) => cambiar({ cuenta })}
@@ -401,26 +407,26 @@ export function Redactar({
               </div>
             )}
             <CampoDirecciones
-              etiqueta="Para"
+              etiqueta={tr.campos.para}
               valor={b.para}
               onCambiar={(para) => cambiar({ para })}
               autoFocus={!b.para.length}
               extra={
                 !verCco && (
                   <button className="campo-extra" onClick={() => setVerCco(true)}>
-                    Cc/Cco
+                    {tr.campos.ccCco}
                   </button>
                 )
               }
             />
             {verCco && (
               <>
-                <CampoDirecciones etiqueta="Cc" valor={b.cc} onCambiar={(cc) => cambiar({ cc })} />
-                <CampoDirecciones etiqueta="Cco" valor={b.cco} onCambiar={(cco) => cambiar({ cco })} />
+                <CampoDirecciones etiqueta={tr.campos.cc} valor={b.cc} onCambiar={(cc) => cambiar({ cc })} />
+                <CampoDirecciones etiqueta={tr.campos.cco} valor={b.cco} onCambiar={(cco) => cambiar({ cco })} />
               </>
             )}
             <div className="campo">
-              <label>Asunto</label>
+              <label>{tr.campos.asunto}</label>
               <input
                 className="asunto"
                 value={b.asunto}
@@ -431,24 +437,24 @@ export function Redactar({
               />
             </div>
             <div className="redactar-formato">
-              <button title="Negrita (Ctrl+B)" onMouseDown={(e) => (e.preventDefault(), formato('bold'))}>
+              <button title={tr.formato.negrita} onMouseDown={(e) => (e.preventDefault(), formato('bold'))}>
                 <TextB size={15} weight="bold" />
               </button>
-              <button title="Cursiva (Ctrl+I)" onMouseDown={(e) => (e.preventDefault(), formato('italic'))}>
+              <button title={tr.formato.cursiva} onMouseDown={(e) => (e.preventDefault(), formato('italic'))}>
                 <TextItalic size={15} />
               </button>
-              <button title="Subrayado (Ctrl+U)" onMouseDown={(e) => (e.preventDefault(), formato('underline'))}>
+              <button title={tr.formato.subrayado} onMouseDown={(e) => (e.preventDefault(), formato('underline'))}>
                 <TextUnderline size={15} />
               </button>
               <span className="sep" />
-              <button title="Lista" onMouseDown={(e) => (e.preventDefault(), formato('insertUnorderedList'))}>
+              <button title={tr.formato.lista} onMouseDown={(e) => (e.preventDefault(), formato('insertUnorderedList'))}>
                 <ListBullets size={15} />
               </button>
-              <button title="Lista numerada" onMouseDown={(e) => (e.preventDefault(), formato('insertOrderedList'))}>
+              <button title={tr.formato.listaNumerada} onMouseDown={(e) => (e.preventDefault(), formato('insertOrderedList'))}>
                 <ListNumbers size={15} />
               </button>
               <button
-                title="Enlace"
+                title={tr.formato.enlace}
                 onMouseDown={(e) => {
                   e.preventDefault()
                   // Se recuerda la selección: al escribir la dirección el foco sale del editor.
@@ -463,7 +469,7 @@ export function Redactar({
                 <input
                   className="enlace"
                   autoFocus
-                  placeholder="https://… y Intro"
+                  placeholder={tr.formato.enlacePlaceholder}
                   value={enlace.url}
                   onChange={(e) => setEnlace({ ...enlace, url: e.target.value })}
                   onBlur={() => setEnlace(null)}
@@ -490,7 +496,7 @@ export function Redactar({
                 />
               )}
               <span className="sep" />
-              <button title="Adjuntar archivos" onClick={async () => anadirAdjuntos(await api.elegirArchivos())}>
+              <button title={tr.formato.adjuntar} onClick={async () => anadirAdjuntos(await api.elegirArchivos())}>
                 <Paperclip size={15} />
               </button>
             </div>
@@ -508,7 +514,7 @@ export function Redactar({
             onInput={tocar}
             onPaste={pegar}
           />
-          {!b && !error && <div className="cargando">Preparando…</div>}
+          {!b && !error && <div className="cargando">{tr.preparando}</div>}
         </div>
 
         {b && b.adjuntos.length > 0 && (

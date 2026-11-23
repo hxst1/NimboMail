@@ -5,6 +5,7 @@ import type { Attachment } from 'nodemailer/lib/mailer'
 import type { Borrador } from '@shared/tipos'
 import { credencialesSmtp, opcionesTls, type ConfigCuenta } from './cuentas'
 import type { Portapapeles } from './portapapeles'
+import { t } from './idioma'
 
 const direccion = (d: { nombre: string; direccion: string }) => (d.nombre ? { name: d.nombre, address: d.direccion } : d.direccion)
 
@@ -36,7 +37,7 @@ export class Smtp {
       else if (a.datos) out.push({ filename: a.nombre, content: Buffer.from(a.datos), contentType: a.tipo || undefined })
       else if (a.url) {
         const r = await this.portapapeles.leer(a.url)
-        if (!r) throw new Error(`No se pudo leer el adjunto «${a.nombre}»`)
+        if (!r) throw new Error(t().principal.mensajes.noLeerAdjunto(a.nombre))
         out.push({ filename: a.nombre || r.nombre, content: r.datos, contentType: a.tipo || r.tipo || undefined })
       }
     }

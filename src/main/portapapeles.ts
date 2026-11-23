@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process'
 import { app, BrowserWindow, clipboard, ClipboardItem, dialog, nativeImage, shell } from 'electron'
 import { rutaAdjunto } from './adjuntos'
 import { DIR_REMOTO, type Remotas } from './remoto'
+import { t } from './idioma'
 
 const DIR_TEMPORAL = join(homedir(), '.cache', 'nimbomail', 'portapapeles')
 // Formatos del sistema tal cual (Electron 45: clipboard asíncrono con ClipboardItem).
@@ -26,7 +27,7 @@ function wlCopy(tipo: string, datos: Buffer): Promise<void> {
     })
   })
 }
-const limpio = (n: string) => n.replace(/[/\\\0]/g, '_').slice(0, 180) || 'archivo'
+const limpio = (n: string) => n.replace(/[/\\\0]/g, '_').slice(0, 180) || t().principal.nombres.archivo
 
 const EXTENSIONES: Record<string, string> = {
   'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/avif': 'avif',
@@ -41,7 +42,7 @@ export class Portapapeles {
     if (data) {
       const tipo = data[1] || 'application/octet-stream'
       const datos = data[2] ? Buffer.from(data[3], 'base64') : Buffer.from(decodeURIComponent(data[3]))
-      return { datos, tipo, nombre: `imagen.${EXTENSIONES[tipo] ?? 'bin'}` }
+      return { datos, tipo, nombre: `${t().principal.nombres.imagen}.${EXTENSIONES[tipo] ?? 'bin'}` }
     }
     const adj = url.match(/^nimbomail:\/\/adjunto\/([0-9a-f]{20})\/(\d+)$/)
     if (adj) {
@@ -52,7 +53,7 @@ export class Portapapeles {
     if (rem && (await this.remotas.descargar(rem[1]))) {
       const ruta = join(DIR_REMOTO, rem[1])
       const tipo = this.remotas.tipo(rem[1]) ?? 'image/png'
-      return { datos: await readFile(ruta), tipo, nombre: `imagen.${EXTENSIONES[tipo] ?? 'png'}`, ruta }
+      return { datos: await readFile(ruta), tipo, nombre: `${t().principal.nombres.imagen}.${EXTENSIONES[tipo] ?? 'png'}`, ruta }
     }
     return null
   }
@@ -63,10 +64,10 @@ export class Portapapeles {
 
   async copiarImagen(url: string) {
     const r = await this.leer(url)
-    if (!r) throw new Error('No se pudo leer la imagen')
+    if (!r) throw new Error(t().principal.portapapeles.noLeerImagen)
     // Siempre como PNG, que es lo que entiende cualquier app al pegar.
     const img = nativeImage.createFromBuffer(r.datos)
-    if (img.isEmpty()) throw new Error('Formato de imagen no compatible')
+    if (img.isEmpty()) throw new Error(t().principal.portapapeles.formatoImagen)
     const png = img.toPNG()
     await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
     if (!(await clipboard.has('image/png'))) await wlCopy('image/png', png)
@@ -75,7 +76,7 @@ export class Portapapeles {
   /** Una copia con su nombre de verdad en una carpeta temporal (los de la caché llevan prefijo). */
   private async conNombre(url: string, nombre?: string): Promise<string> {
     const r = await this.leer(url)
-    if (!r) throw new Error('No se pudo leer el archivo')
+    if (!r) throw new Error(t().principal.portapapeles.noLeerArchivo)
     const dir = join(DIR_TEMPORAL, String(Date.now()))
     await mkdir(dir, { recursive: true })
     const destino = join(dir, limpio(nombre || r.nombre))
@@ -98,7 +99,7 @@ export class Portapapeles {
 
   async guardarComo(url: string, nombre?: string): Promise<boolean> {
     const r = await this.leer(url)
-    if (!r) throw new Error('No se pudo leer el archivo')
+    if (!r) throw new Error(t().principal.portapapeles.noLeerArchivo)
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
     const res = await dialog.showSaveDialog(win, { defaultPath: join(app.getPath('downloads'), basename(limpio(nombre || r.nombre))) })
     if (res.canceled || !res.filePath) return false
