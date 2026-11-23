@@ -1,6 +1,6 @@
 {
   "name": "nimbomail",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Fast, minimal and private email client for Linux",
   "license": "GPL-3.0-or-later",

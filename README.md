@@ -52,7 +52,7 @@ Passwords and tokens are stored in the **system keyring** (libsecret: GNOME Keyr
 
 ## Download
 
-Grab the latest build from [**Releases**](https://github.com/hxst1/nimbomail/releases/latest):
+Grab the latest build from [**Releases**](https://github.com/hxst1/NimboMail/releases/latest):
 
 - **AppImage** (any distro): download `NimboMail-*-x86_64.AppImage`, make it executable and run it.
   ```sh
@@ -63,7 +63,7 @@ Grab the latest build from [**Releases**](https://github.com/hxst1/nimbomail/rel
 - **Tarball**: `NimboMail-*-x64.tar.gz`, unpack it anywhere and run `nimbomail` inside.
 - **Arch Linux**: build the package from the PKGBUILD in this repo (the AUR package is on its way):
   ```sh
-  git clone https://github.com/hxst1/nimbomail.git
+  git clone https://github.com/hxst1/NimboMail.git
   cd nimbomail/packaging/aur && makepkg -si
   ```
 
@@ -74,7 +74,7 @@ You also need `secret-tool` (the `libsecret` package) for the keyring.
 You need Linux, [Node.js 24](https://nodejs.org), [pnpm](https://pnpm.io) and `secret-tool` (the `libsecret` package).
 
 ```sh
-git clone https://github.com/hxst1/nimbomail.git
+git clone https://github.com/hxst1/NimboMail.git
 cd nimbomail
 pnpm install
 pnpm install-app   # builds and installs NimboMail for your user (no root)

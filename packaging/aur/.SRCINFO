@@ -1,22 +1,22 @@
 pkgbase = nimbomail-bin
 	pkgdesc = Fast, minimal and private email client (IMAP/SMTP) with tracking protection, offline translation and calendar
-	pkgver = 0.1.0
+	pkgver = 0.2.0
 	pkgrel = 1
-	url = https://github.com/hxst1/nimbomail
+	url = https://github.com/hxst1/NimboMail
 	arch = x86_64
 	license = GPL-3.0-or-later
 	depends = alsa-lib
 	depends = gtk3
 	depends = libsecret
 	depends = nss
-	optdepends = libnotify: notificaciones del escritorio
+	optdepends = libnotify: desktop notifications
 	provides = nimbomail
 	conflicts = nimbomail
 	options = !strip
 	options = !debug
-	source = https://github.com/hxst1/nimbomail/releases/download/v0.1.0/NimboMail-0.1.0-x64.tar.gz
+	source = https://github.com/hxst1/NimboMail/releases/download/v0.2.0/NimboMail-0.2.0-x64.tar.gz
 	source = nimbomail.desktop
-	sha256sums = 3a94dc040ce3747cfaba10f2deee66966de5895abe6028a1d87fa162800bb7fc
+	sha256sums = 1e0ffcbccd4a2b9a0f418e62b0057af4538e6b7ef637689e8ed52cd64860d0c7
 	sha256sums = 45e20d2e258f59fe511800cd3d7519502234db3091e4dff0d00f41ab21d4e4b6
 
 pkgname = nimbomail-bin
