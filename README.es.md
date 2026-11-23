@@ -46,6 +46,20 @@ Al añadir una cuenta solo pides tu dirección: NimboMail busca la configuració
 
 Las contraseñas y los tokens se guardan en el **llavero del sistema** (libsecret: GNOME Keyring, KWallet…), nunca en archivos. La configuración de las cuentas está en `~/.config/nimbomail/cuentas.toml`.
 
+## Descarga
+
+Descarga la última versión en [**Releases**](https://github.com/hxst1/nimbomail/releases/latest):
+
+- **AppImage** (cualquier distribución): descarga `NimboMail-*-x86_64.AppImage`, dale permiso de ejecución y ábrelo.
+  ```sh
+  chmod +x NimboMail-*-x86_64.AppImage
+  ./NimboMail-*-x86_64.AppImage
+  ```
+  Los AppImage necesitan FUSE 2 (`sudo pacman -S fuse2` en Arch, `sudo apt install libfuse2` en Debian/Ubuntu). Sin él, ábrelo con `--appimage-extract-and-run`.
+- **Comprimido**: `NimboMail-*-x64.tar.gz`, descomprímelo donde quieras y ejecuta `nimbomail`.
+
+También necesitas `secret-tool` (paquete `libsecret`) para el llavero.
+
 ## Instalación desde el código
 
 Necesitas Linux, [Node.js 24](https://nodejs.org), [pnpm](https://pnpm.io) y `secret-tool` (paquete `libsecret`).

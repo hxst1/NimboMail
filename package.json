@@ -2,7 +2,7 @@
   "name": "nimbomail",
   "version": "0.1.0",
   "private": true,
-  "description": "NimboMail: cliente de correo para Linux, rápido, minimalista y privado",
+  "description": "Fast, minimal and private email client for Linux",
   "license": "GPL-3.0-or-later",
   "author": "hxst1",
   "main": "out/main/index.js",
@@ -14,6 +14,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "empaquetar": "electron-vite build && electron-builder --linux dir --publish never",
+    "distribuir": "electron-vite build && electron-builder --linux AppImage tar.gz --publish never",
     "instalar": "bash scripts/instalar.sh"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "vite": "^8.3.8"
   },
   "productName": "NimboMail",
+  "desktopName": "nimbomail.desktop",
   "build": {
     "appId": "io.github.hxst1.nimbomail",
     "productName": "NimboMail",
@@ -59,9 +61,22 @@
       "target": [
         "dir"
       ],
-      "category": "Network",
+      "category": "Network;Email",
       "icon": "resources/nimbomail.png",
-      "executableName": "nimbomail"
+      "executableName": "nimbomail",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "synopsis": "Fast, minimal and private email client",
+      "mimeTypes": [
+        "x-scheme-handler/mailto"
+      ],
+      "desktop": {
+        "entry": {
+          "Name": "NimboMail",
+          "GenericName": "Email",
+          "StartupWMClass": "nimbomail",
+          "Keywords": "email;mail;imap;smtp;calendar;correo;"
+        }
+      }
     }
   }
 }

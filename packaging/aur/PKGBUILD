@@ -1,0 +1,33 @@
+# Maintainer: hxst1
+pkgname=nimbomail-bin
+_pkgname=nimbomail
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Fast, minimal and private email client (IMAP/SMTP) with tracking protection, offline translation and calendar'
+arch=('x86_64')
+url='https://github.com/hxst1/nimbomail'
+license=('GPL-3.0-or-later')
+depends=('alsa-lib' 'gtk3' 'libsecret' 'nss')
+optdepends=('libnotify: notificaciones del escritorio')
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+options=('!strip' '!debug')
+source=("https://github.com/hxst1/nimbomail/releases/download/v$pkgver/NimboMail-$pkgver-x64.tar.gz"
+        "$_pkgname.desktop")
+sha256sums=('3a94dc040ce3747cfaba10f2deee66966de5895abe6028a1d87fa162800bb7fc'
+            '45e20d2e258f59fe511800cd3d7519502234db3091e4dff0d00f41ab21d4e4b6')
+
+package() {
+  install -d "$pkgdir/opt/$_pkgname"
+  cp -a "NimboMail-$pkgver-x64/." "$pkgdir/opt/$_pkgname/"
+  # Sandbox de Chromium en kernels sin espacios de nombres de usuario sin privilegios (linux-hardened…)
+  chmod 4755 "$pkgdir/opt/$_pkgname/chrome-sandbox"
+
+  install -d "$pkgdir/usr/bin"
+  ln -s "/opt/$_pkgname/$_pkgname" "$pkgdir/usr/bin/$_pkgname"
+
+  install -Dm644 "$_pkgname.desktop" "$pkgdir/usr/share/applications/$_pkgname.desktop"
+  local res="$pkgdir/opt/$_pkgname/resources/app/resources"
+  install -Dm644 "$res/$_pkgname.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/$_pkgname.svg"
+  install -Dm644 "$res/$_pkgname.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/$_pkgname.png"
+}

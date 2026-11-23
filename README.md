@@ -52,6 +52,20 @@ When adding an account you only type your address: NimboMail finds the settings 
 
 Passwords and tokens are stored in the **system keyring** (libsecret: GNOME Keyring, KWallet…), never in files. Account settings live in `~/.config/nimbomail/cuentas.toml`.
 
+## Download
+
+Grab the latest build from [**Releases**](https://github.com/hxst1/nimbomail/releases/latest):
+
+- **AppImage** (any distro): download `NimboMail-*-x86_64.AppImage`, make it executable and run it.
+  ```sh
+  chmod +x NimboMail-*-x86_64.AppImage
+  ./NimboMail-*-x86_64.AppImage
+  ```
+  AppImages need FUSE 2 (`sudo pacman -S fuse2` on Arch, `sudo apt install libfuse2` on Debian/Ubuntu). Without it, run it with `--appimage-extract-and-run`.
+- **Tarball**: `NimboMail-*-x64.tar.gz`, unpack it anywhere and run `nimbomail` inside.
+
+You also need `secret-tool` (the `libsecret` package) for the keyring.
+
 ## Install from source
 
 You need Linux, [Node.js 24](https://nodejs.org), [pnpm](https://pnpm.io) and `secret-tool` (the `libsecret` package).

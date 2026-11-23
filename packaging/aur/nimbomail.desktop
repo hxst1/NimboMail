@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=NimboMail
+GenericName=Email
+Comment=Fast, minimal and private email client for Linux
+Exec=/usr/bin/nimbomail %U
+Icon=nimbomail
+StartupWMClass=nimbomail
+Categories=Network;Email;
+Keywords=email;mail;imap;smtp;calendar;correo;
+MimeType=x-scheme-handler/mailto;
+Terminal=false
