@@ -63,6 +63,11 @@ Grab the latest build from [**Releases**](https://github.com/hxst1/nimbomail/rel
   ```
   AppImages need FUSE 2 (`sudo pacman -S fuse2` on Arch, `sudo apt install libfuse2` on Debian/Ubuntu). Without it, run it with `--appimage-extract-and-run`.
 - **Tarball**: `NimboMail-*-x64.tar.gz`, unpack it anywhere and run `nimbomail` inside.
+- **Arch Linux**: build the package from the PKGBUILD in this repo (the AUR package is on its way):
+  ```sh
+  git clone https://github.com/hxst1/nimbomail.git
+  cd nimbomail/packaging/aur && makepkg -si
+  ```
 
 You also need `secret-tool` (the `libsecret` package) for the keyring.
 
