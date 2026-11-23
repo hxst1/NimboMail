@@ -284,7 +284,7 @@ export function App() {
         { etiqueta: 'Añadir otra cuenta…', icono: <UserPlus size={15} />, accion: () => setAlta({}) },
         '-',
         {
-          etiqueta: `Quitar «${c.nombre}» de TuxMail`,
+          etiqueta: `Quitar «${c.nombre}» de NimboMail`,
           icono: <Trash size={15} />,
           peligro: true,
           // Confirmación en el propio menú: el correo del servidor no se toca, solo la copia local.
@@ -294,7 +294,7 @@ export function App() {
               peligro: true,
               accion: async () => {
                 await api.quitarCuenta(id)
-                avisar(`«${c.nombre}» quitada de TuxMail`)
+                avisar(`«${c.nombre}» quitada de NimboMail`)
               },
             },
           ],
@@ -402,7 +402,7 @@ export function App() {
       if (e.ctrlKey && !e.shiftKey && k === 'f') return e.preventDefault(), setFocoBusqueda(Date.now())
       if (enCampo) return
       if (e.ctrlKey && !e.shiftKey && k === 'z') return e.preventDefault(), api.deshacer()
-      if (e.ctrlKey && e.shiftKey && k === 't') return e.preventDefault(), window.dispatchEvent(new Event('tuxmail:traducir'))
+      if (e.ctrlKey && e.shiftKey && k === 't') return e.preventDefault(), window.dispatchEvent(new Event('nimbomail:traducir'))
       if (e.ctrlKey && !e.shiftKey && k === 'w') return e.preventDefault(), api.cerrarVentana()
       if (e.ctrlKey && !e.shiftKey && k === 'q') return e.preventDefault(), api.salir()
       if (e.ctrlKey && !e.shiftKey && k === 'n') return e.preventDefault(), accion('redactar')

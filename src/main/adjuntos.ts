@@ -1,4 +1,4 @@
-// Adjuntos en caché de disco, servidos a la interfaz por el protocolo tuxmail://adjunto/…
+// Adjuntos en caché de disco, servidos a la interfaz por el protocolo nimbomail://adjunto/…
 import { createHash } from 'node:crypto'
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import type { Attachment } from 'mailparser'
 import type { Adjunto } from '@shared/tipos'
 
-export const DIR_ADJUNTOS = join(homedir(), '.cache', 'tuxmail', 'adjuntos')
+export const DIR_ADJUNTOS = join(homedir(), '.cache', 'nimbomail', 'adjuntos')
 
 const carpetaDe = (id: string) => createHash('sha1').update(id).digest('hex').slice(0, 20)
 const limpio = (nombre: string) => nombre.replace(/[/\\\0]/g, '_').slice(0, 180) || 'adjunto'
@@ -24,7 +24,7 @@ export async function guardarAdjuntos(id: string, lista: Attachment[]): Promise<
       nombre,
       tipo: a.contentType || 'application/octet-stream',
       tamano: a.size ?? a.content.length,
-      url: `tuxmail://adjunto/${carpetaDe(id)}/${i}`,
+      url: `nimbomail://adjunto/${carpetaDe(id)}/${i}`,
       // Las imágenes incrustadas en el HTML (cid:) no salen como adjunto, pero sí en el visor.
       inline: !!a.related || (a.contentDisposition === 'inline' && !!a.cid),
     })
@@ -60,12 +60,12 @@ export async function apuntarAdjuntos(id: string, lista: AdjuntoPendiente[]): Pr
     nombre: a.nombre,
     tipo: a.tipo || 'application/octet-stream',
     tamano: a.tamano,
-    url: `tuxmail://adjunto/${carpetaDe(id)}/${i}`,
+    url: `nimbomail://adjunto/${carpetaDe(id)}/${i}`,
     inline: false,
   }))
 }
 
-/** Ruta en disco de tuxmail://adjunto/<carpeta>/<índice>, sin dejar salir de la caché. */
+/** Ruta en disco de nimbomail://adjunto/<carpeta>/<índice>, sin dejar salir de la caché. */
 export async function rutaAdjunto(carpeta: string, indice: string): Promise<{ ruta: string; nombre: string } | null> {
   if (!/^[0-9a-f]{20}$/.test(carpeta) || !/^\d+$/.test(indice)) return null
   const dir = join(DIR_ADJUNTOS, carpeta)
@@ -93,7 +93,7 @@ export async function rutaAdjunto(carpeta: string, indice: string): Promise<{ ru
 }
 
 export async function leerAdjunto(url: string): Promise<{ datos: Buffer; nombre: string } | null> {
-  const m = url.match(/^tuxmail:\/\/adjunto\/([0-9a-f]{20})\/(\d+)$/)
+  const m = url.match(/^nimbomail:\/\/adjunto\/([0-9a-f]{20})\/(\d+)$/)
   if (!m) return null
   const r = await rutaAdjunto(m[1], m[2])
   return r ? { datos: await readFile(r.ruta), nombre: r.nombre } : null

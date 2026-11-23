@@ -18,7 +18,7 @@ const METODOS: (keyof ApiPrincipal)[] = [
   'crearCarpeta', 'renombrarCarpeta', 'borrarCarpeta', 'abrirEnlace',
 ]
 const llamar = Object.fromEntries(
-  METODOS.map((m) => [m, (...args: unknown[]) => ipcRenderer.invoke('tuxmail', m, ...args)]),
+  METODOS.map((m) => [m, (...args: unknown[]) => ipcRenderer.invoke('nimbomail', m, ...args)]),
 ) as Api
 
 const arg = (nombre: string) => process.argv.find((a) => a.startsWith(`--niebla-${nombre}=`))?.split('=')[1] ?? null
@@ -34,44 +34,44 @@ const api = {
   rutaDeArchivo: (f: File) => webUtils.getPathForFile(f),
   alCambiar: (fn: () => void) => {
     const h = () => fn()
-    ipcRenderer.on('tuxmail:cambios', h)
+    ipcRenderer.on('nimbomail:cambios', h)
     return () => {
-      ipcRenderer.removeListener('tuxmail:cambios', h)
+      ipcRenderer.removeListener('nimbomail:cambios', h)
     }
   },
   alParche: (fn: (p: Parche) => void) => {
     const h = (_e: unknown, p: Parche) => fn(p)
-    ipcRenderer.on('tuxmail:parche', h)
+    ipcRenderer.on('nimbomail:parche', h)
     return () => {
-      ipcRenderer.removeListener('tuxmail:parche', h)
+      ipcRenderer.removeListener('nimbomail:parche', h)
     }
   },
   alCalendario: (fn: () => void) => {
     const h = () => fn()
-    ipcRenderer.on('tuxmail:calendario', h)
+    ipcRenderer.on('nimbomail:calendario', h)
     return () => {
-      ipcRenderer.removeListener('tuxmail:calendario', h)
+      ipcRenderer.removeListener('nimbomail:calendario', h)
     }
   },
   alIrADia: (fn: (ms: number) => void) => {
     const h = (_e: unknown, ms: number) => fn(ms)
-    ipcRenderer.on('tuxmail:ir-a-dia', h)
+    ipcRenderer.on('nimbomail:ir-a-dia', h)
     return () => {
-      ipcRenderer.removeListener('tuxmail:ir-a-dia', h)
+      ipcRenderer.removeListener('nimbomail:ir-a-dia', h)
     }
   },
   alAccion: (fn: (accion: string) => void) => {
     const h = (_e: unknown, a: string) => fn(a)
-    ipcRenderer.on('tuxmail:accion', h)
+    ipcRenderer.on('nimbomail:accion', h)
     return () => {
-      ipcRenderer.removeListener('tuxmail:accion', h)
+      ipcRenderer.removeListener('nimbomail:accion', h)
     }
   },
   alError: (fn: (texto: string) => void) => {
     const h = (_e: unknown, t: string) => fn(t)
-    ipcRenderer.on('tuxmail:error', h)
+    ipcRenderer.on('nimbomail:error', h)
     return () => {
-      ipcRenderer.removeListener('tuxmail:error', h)
+      ipcRenderer.removeListener('nimbomail:error', h)
     }
   },
 }

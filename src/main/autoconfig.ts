@@ -22,7 +22,7 @@ export interface Servidores {
 
 export interface Deteccion {
   proveedor: Proveedor
-  etiqueta: string // nombre sugerido para la cuenta en TuxMail
+  etiqueta: string // nombre sugerido para la cuenta en NimboMail
   servidores: Servidores | null
   auth: TipoAuth // cómo se entra: contraseña (de aplicación o normal) u OAuth
   ayuda?: { texto: string; enlaces?: { etiqueta: string; url: string }[] }
@@ -37,7 +37,7 @@ const CONOCIDOS: { dominios: string[]; proveedor: Proveedor; etiqueta: string; s
     s: { imap: 'imap.gmail.com', puerto: 993, smtp: 'smtp.gmail.com', smtpPuerto: 465 },
     ayuda: {
       texto:
-        'Gmail no acepta tu contraseña de siempre: necesita una contraseña de aplicación. Créala con el nombre «TuxMail» y pega aquí las 16 letras (los espacios dan igual). Si Google dice que no está disponible, activa antes la verificación en dos pasos.',
+        'Gmail no acepta tu contraseña de siempre: necesita una contraseña de aplicación. Créala con el nombre «NimboMail» y pega aquí las 16 letras (los espacios dan igual). Si Google dice que no está disponible, activa antes la verificación en dos pasos.',
       enlaces: [
         { etiqueta: 'Crear contraseña de aplicación', url: 'https://myaccount.google.com/apppasswords' },
         { etiqueta: 'Verificación en dos pasos', url: 'https://myaccount.google.com/signinoptions/twosv' },
@@ -92,7 +92,7 @@ const CONOCIDOS: { dominios: string[]; proveedor: Proveedor; etiqueta: string; s
 const ayudaMicrosoft = (): Deteccion['ayuda'] =>
   oauthDisponible('microsoft')
     ? undefined
-    : { texto: 'Esta versión de TuxMail no tiene configurado el inicio de sesión con Microsoft (ver README). Puedes probar con una contraseña de aplicación si tu cuenta la permite.' }
+    : { texto: 'Esta versión de NimboMail no tiene configurado el inicio de sesión con Microsoft (ver README). Puedes probar con una contraseña de aplicación si tu cuenta la permite.' }
 
 function deConocido(k: (typeof CONOCIDOS)[number], email: string, origen: string, etiqueta = k.etiqueta): Deteccion {
   const ms = k.proveedor === 'microsoft'

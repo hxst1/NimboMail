@@ -60,7 +60,7 @@ export function NuevaCuenta({
   onCerrar: () => void
   avisar: (t: string) => void
 }) {
-  // Si escriben una dirección que ya está en TuxMail, se pasa a pedir su contraseña.
+  // Si escriben una dirección que ya está en NimboMail, se pasa a pedir su contraseña.
   const [existente, setExistente] = useState<Cuenta | undefined>(existenteInicial)
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState(existente?.direccion ?? '')
@@ -211,7 +211,7 @@ export function NuevaCuenta({
         <div className="nc-icono">
           <EnvelopeSimple size={30} weight="light" />
         </div>
-        <h2>{existente ? `Contraseña de ${existente.nombre}` : bienvenida ? 'Te damos la bienvenida a TuxMail' : 'Añadir una cuenta'}</h2>
+        <h2>{existente ? `Contraseña de ${existente.nombre}` : bienvenida ? 'Te damos la bienvenida a NimboMail' : 'Añadir una cuenta'}</h2>
         <p className="nc-sub">
           {existente
             ? existente.direccion
@@ -239,7 +239,7 @@ export function NuevaCuenta({
                 {NOMBRES_PROVEEDOR[deteccion.proveedor] ? ` · ${NOMBRES_PROVEEDOR[deteccion.proveedor]}` : ''} · {deteccion.origen}
               </span>
             </div>
-            <input className="nc-campo" placeholder="Nombre de la cuenta en TuxMail (Trabajo, Personal…)" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} />
+            <input className="nc-campo" placeholder="Nombre de la cuenta en NimboMail (Trabajo, Personal…)" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} />
 
             {usaOAuth ? (
               <button type="button" className="nc-boton" onClick={entrarOAuth} disabled={!!ocupado}>

@@ -1,9 +1,9 @@
-// Traductor inglés → español de TuxMail, en local.
+// Traductor inglés → español de NimboMail, en local.
 // El motor (Bergamot) corre en un worker dentro de un iframe invisible con su propio origen
-// (tuxmail://traductor): no ve nada de la app y la app solo le pasa textos por postMessage.
+// (nimbomail://traductor): no ve nada de la app y la app solo le pasa textos por postMessage.
 import { api } from '@/estado'
 
-const ORIGEN = 'tuxmail://traductor'
+const ORIGEN = 'nimbomail://traductor'
 
 type Pendiente = { ok: (r: string[]) => void; ko: (e: Error) => void }
 let marco: HTMLIFrameElement | null = null

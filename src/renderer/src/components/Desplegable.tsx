@@ -3,7 +3,7 @@ import { CaretDown, Check } from '@phosphor-icons/react'
 import { useInterfaz } from '@/components/MenuContextual'
 
 /**
- * Desplegable con el estilo de TuxMail (el <select> nativo sale con el aspecto del sistema): un botón
+ * Desplegable con el estilo de NimboMail (el <select> nativo sale con el aspecto del sistema): un botón
  * con el valor elegido que abre el menú de cristal, con una ✓ en la opción actual.
  */
 export function Desplegable<T extends string | number>({

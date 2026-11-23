@@ -1,4 +1,4 @@
-// Calendario de TuxMail: invitaciones que llegan por correo (iMIP) y calendarios suscritos por enlace
+// Calendario de NimboMail: invitaciones que llegan por correo (iMIP) y calendarios suscritos por enlace
 // iCal (solo lectura). Todo en la misma SQLite; los enlaces, en el llavero (suelen ser secretos).
 import { EventEmitter } from 'node:events'
 import { randomBytes } from 'node:crypto'
@@ -371,7 +371,7 @@ export class Calendario extends EventEmitter {
   }): string {
     const cal = this.asegurarPropio()
     const ya = d.id ? (this.db.sql.prepare('SELECT * FROM eventos WHERE id = ? AND calendario = ?').get(d.id, cal) as unknown as Fila | undefined) : undefined
-    const uid = ya?.uid ?? `${randomBytes(8).toString('hex')}@tuxmail`
+    const uid = ya?.uid ?? `${randomBytes(8).toString('hex')}@nimbomail`
     const id = ya?.id ?? `${cal}:${uid}:`
     const inicio = d.todoElDia ? new Date(new Date(d.inicio).setHours(0, 0, 0, 0)).getTime() : d.inicio
     const fin = d.todoElDia ? Math.max(new Date(new Date(d.fin).setHours(0, 0, 0, 0)).getTime(), inicio) + 86_400_000 : Math.max(d.fin, d.inicio)
@@ -458,7 +458,7 @@ export class Calendario extends EventEmitter {
   private async descargar(url: string): Promise<string> {
     const u = url.trim().replace(/^webcals?:\/\//i, 'https://')
     if (!/^https:\/\//i.test(u)) throw new Error('El enlace tiene que empezar por https:// o webcal://')
-    const r = await fetch(u, { headers: { 'User-Agent': 'TuxMail' }, signal: AbortSignal.timeout(25_000) })
+    const r = await fetch(u, { headers: { 'User-Agent': 'NimboMail' }, signal: AbortSignal.timeout(25_000) })
     if (!r.ok) throw new Error(`El servidor respondió ${r.status}`)
     if (Number(r.headers.get('content-length') ?? 0) > MAX_FEED) throw new Error('El calendario es demasiado grande')
     const t = await r.text()
@@ -562,7 +562,7 @@ export class Calendario extends EventEmitter {
     try {
       mkdirSync(this.dirExportar, { recursive: true })
       const ruta = join(this.dirExportar, 'calendario.ics')
-      writeFileSync(ruta + '.tmp', envolver(['X-WR-CALNAME:TuxMail', ...lineas]), { mode: 0o600 })
+      writeFileSync(ruta + '.tmp', envolver(['X-WR-CALNAME:NimboMail', ...lineas]), { mode: 0o600 })
       renameSync(ruta + '.tmp', ruta)
     } catch (e) {
       console.error('[calendario] no se pudo exportar:', (e as Error).message)

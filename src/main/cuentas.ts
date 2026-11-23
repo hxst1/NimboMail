@@ -1,4 +1,4 @@
-// Cuentas de TuxMail: la configuración en ~/.config/tuxmail/cuentas.toml y las contraseñas (o los
+// Cuentas de NimboMail: la configuración en ~/.config/nimbomail/cuentas.toml y las contraseñas (o los
 // tokens de OAuth) en el llavero del sistema (libsecret: GNOME Keyring, KWallet…), nunca en archivos.
 import { execFile, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -6,17 +6,18 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import tls from 'node:tls'
 import { parse, stringify } from 'smol-toml'
+import { NOMBRE_ANTERIOR } from './migracion'
 import { renovarAcceso, type IdOAuth } from './oauth'
 
-export const RUTA_CUENTAS = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'tuxmail', 'cuentas.toml')
-const SERVICIO_LLAVERO = 'tuxmail'
+export const RUTA_CUENTAS = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'nimbomail', 'cuentas.toml')
+const SERVICIO_LLAVERO = 'nimbomail'
 
 export type TipoAuth = 'clave' | IdOAuth
 
 export interface ConfigCuenta {
   id: string
   nombre: string // nombre del remitente («Alex Martín»)
-  etiqueta: string // cómo se ve la cuenta en TuxMail («Trabajo», «Gmail»)
+  etiqueta: string // cómo se ve la cuenta en NimboMail («Trabajo», «Gmail»)
   direccion: string
   usuario: string
   imap: string
@@ -68,7 +69,7 @@ export function escribirCuentas(lista: ConfigCuenta[]) {
     cuenta[c.id] = fila
   }
   mkdirSync(dirname(RUTA_CUENTAS), { recursive: true })
-  const cabecera = '# Cuentas de TuxMail. Las contraseñas no van aquí: están en el llavero del sistema.\n\n'
+  const cabecera = '# Cuentas de NimboMail. Las contraseñas no van aquí: están en el llavero del sistema.\n\n'
   writeFileSync(RUTA_CUENTAS + '.tmp', cabecera + stringify({ cuenta }) + '\n', { mode: 0o600 })
   renameSync(RUTA_CUENTAS + '.tmp', RUTA_CUENTAS)
 }
@@ -76,17 +77,34 @@ export function escribirCuentas(lista: ConfigCuenta[]) {
 // ------------------------------------------------------------ llavero
 
 /** Contraseña (o token de renovación de OAuth) de una cuenta. */
-export function secreto(direccion: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    execFile('secret-tool', ['lookup', 'service', SERVICIO_LLAVERO, 'account', direccion], { encoding: 'utf8' }, (err, out) =>
-      err || !out ? reject(new SinClave(direccion)) : resolve(out),
+export async function secreto(direccion: string): Promise<string> {
+  const valor = (await buscarSecreto(SERVICIO_LLAVERO, direccion)) ?? (await traerDeTuxMail(direccion))
+  if (valor === null) throw new SinClave(direccion)
+  return valor
+}
+
+function buscarSecreto(servicio: string, direccion: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile('secret-tool', ['lookup', 'service', servicio, 'account', direccion], { encoding: 'utf8' }, (err, out) =>
+      resolve(err || !out ? null : out),
     )
   })
 }
 
+/** NimboMail se llamaba TuxMail: su contraseña se pasa al servicio nuevo del llavero la primera vez que se pide. */
+async function traerDeTuxMail(direccion: string): Promise<string | null> {
+  const valor = await buscarSecreto(NOMBRE_ANTERIOR, direccion)
+  if (valor === null) return null
+  try {
+    await guardarSecreto(direccion, valor)
+    execFile('secret-tool', ['clear', 'service', NOMBRE_ANTERIOR, 'account', direccion], () => {})
+  } catch {} // si no se puede guardar, se sigue usando la antigua
+  return valor
+}
+
 export function guardarSecreto(direccion: string, valor: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const p = spawn('secret-tool', ['store', `--label=TuxMail: ${direccion}`, 'service', SERVICIO_LLAVERO, 'account', direccion], {
+    const p = spawn('secret-tool', ['store', `--label=NimboMail: ${direccion}`, 'service', SERVICIO_LLAVERO, 'account', direccion], {
       stdio: ['pipe', 'ignore', 'pipe'],
     })
     let error = ''
@@ -99,7 +117,9 @@ export function guardarSecreto(direccion: string, valor: string): Promise<void> 
 
 export function borrarSecreto(direccion: string): Promise<void> {
   return new Promise((resolve) => {
-    execFile('secret-tool', ['clear', 'service', SERVICIO_LLAVERO, 'account', direccion], () => resolve())
+    execFile('secret-tool', ['clear', 'service', SERVICIO_LLAVERO, 'account', direccion], () =>
+      execFile('secret-tool', ['clear', 'service', NOMBRE_ANTERIOR, 'account', direccion], () => resolve()),
+    )
   })
 }
 

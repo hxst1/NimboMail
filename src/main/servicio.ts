@@ -54,11 +54,11 @@ export class Servicio extends EventEmitter {
   ) {
     super()
     mkdirSync(dirDatos, { recursive: true })
-    this.db = new Db(demo ? ':memory:' : join(dirDatos, 'tuxmail.db'))
+    this.db = new Db(demo ? ':memory:' : join(dirDatos, 'nimbomail.db'))
     this.remotas = new Remotas(this.db)
     this.portapapeles = new Portapapeles(this.remotas)
     this.smtp = new Smtp(this.portapapeles)
-    this.calendario = new Calendario(this.db, demo ? null : join(homedir(), '.local', 'share', 'tuxmail'))
+    this.calendario = new Calendario(this.db, demo ? null : join(homedir(), '.local', 'share', 'nimbomail'))
     this.calendario.on('cambios', () => this.emit('calendario'))
     if (demo) {
       demo_sembrar(this.db)
@@ -140,7 +140,7 @@ export class Servicio extends EventEmitter {
 
   async anadirCuenta(d: { nombre: string; etiqueta: string; direccion: string; servidores: Servidores; auth: TipoAuth; clave?: string }) {
     const direccion = d.direccion.trim().toLowerCase()
-    if (this.cuentas.some((c) => c.direccion === direccion)) throw new Error('Esa cuenta ya está en TuxMail')
+    if (this.cuentas.some((c) => c.direccion === direccion)) throw new Error('Esa cuenta ya está en NimboMail')
     const valor = d.auth === 'clave' ? d.clave : this.oauthPendiente.get(direccion)
     if (!valor) throw new Error(d.auth === 'clave' ? 'Falta la contraseña' : 'Hay que iniciar sesión primero')
     await guardarSecreto(direccion, valor)
@@ -170,7 +170,7 @@ export class Servicio extends EventEmitter {
     return id
   }
 
-  /** Quita la cuenta de TuxMail: su configuración, su contraseña y su caché local (nada del servidor). */
+  /** Quita la cuenta de NimboMail: su configuración, su contraseña y su caché local (nada del servidor). */
   async quitarCuenta(id: string) {
     const c = this.cuentas.find((x) => x.id === id)
     if (!c) return
@@ -350,9 +350,9 @@ export class Servicio extends EventEmitter {
     }
   }
 
-  /** Las imágenes de la caché de TuxMail no significan nada fuera: vuelven a su URL original. */
+  /** Las imágenes de la caché de NimboMail no significan nada fuera: vuelven a su URL original. */
   private paraFuera(b: Borrador): Borrador {
-    const html = b.html.replace(/tuxmail:\/\/remoto\/([0-9a-f]{32})/g, (_m, s: string) => this.db.remota(s)?.url ?? '')
+    const html = b.html.replace(/nimbomail:\/\/remoto\/([0-9a-f]{32})/g, (_m, s: string) => this.db.remota(s)?.url ?? '')
     return { ...b, html }
   }
 
@@ -405,7 +405,7 @@ export class Servicio extends EventEmitter {
     const p = await simpleParser(await motor.fuente(id))
     const dirs = (a?: AddressObject | AddressObject[]) =>
       (Array.isArray(a) ? a : a ? [a] : []).flatMap((x) => x.value).map((v) => ({ nombre: v.name ?? '', direccion: v.address ?? '' }))
-    const dir = join(homedir(), '.cache', 'tuxmail', 'borradores', String(Date.now()))
+    const dir = join(homedir(), '.cache', 'nimbomail', 'borradores', String(Date.now()))
     const adjuntos: AdjuntoBorrador[] = []
     for (const a of p.attachments.filter((x) => !x.related)) {
       await mkdir(dir, { recursive: true })

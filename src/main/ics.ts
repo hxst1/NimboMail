@@ -351,7 +351,7 @@ const dia = (ms: number) => {
 }
 
 export function calendario(lineas: string[], metodo?: string): string {
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//TuxMail//TuxMail//ES', 'CALSCALE:GREGORIAN', ...(metodo ? [`METHOD:${metodo}`] : []), ...lineas, 'END:VCALENDAR']
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//NimboMail//NimboMail//ES', 'CALSCALE:GREGORIAN', ...(metodo ? [`METHOD:${metodo}`] : []), ...lineas, 'END:VCALENDAR']
     .map(plegar)
     .join('\r\n') + '\r\n'
 }

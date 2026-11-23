@@ -138,7 +138,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sb-cabecera">
-        <button className="boton-icono cerrar-ventana" title="Cerrar (TuxMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
+        <button className="boton-icono cerrar-ventana" title="Cerrar (NimboMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
           <X size={16} weight="bold" />
         </button>
         <span className="sb-hueco" />

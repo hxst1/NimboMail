@@ -22,8 +22,8 @@ export function plegarCitasHtml(html: string): string {
     ADD_TAGS: ['style'],
     FORBID_TAGS: ['form', 'input', 'button', 'textarea', 'select', 'script', 'iframe', 'object', 'embed'],
     ADD_ATTR: ['target'],
-    // Como la de DOMPurify, más tuxmail: (imágenes remotas en caché y adjuntos servidos por la app).
-    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|tuxmail):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    // Como la de DOMPurify, más nimbomail: (imágenes remotas en caché y adjuntos servidos por la app).
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|nimbomail):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
   })
   const doc = new DOMParser().parseFromString(limpio, 'text/html')
 

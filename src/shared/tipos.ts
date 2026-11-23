@@ -48,7 +48,7 @@ export interface Adjunto {
   nombre: string
   tipo: string
   tamano: number
-  url: string // tuxmail://adjunto/… (servido desde la caché local)
+  url: string // nimbomail://adjunto/… (servido desde la caché local)
   inline: boolean // imagen incrustada en el HTML: no sale como adjunto, sí en el visor
 }
 
@@ -86,7 +86,7 @@ export interface AdjuntoBorrador {
   tamano: number
   tipo?: string
   ruta?: string // archivo del disco (elegido con el clip, arrastrado o pegado desde el gestor de archivos)
-  url?: string // tuxmail://adjunto/… (reenviar)
+  url?: string // nimbomail://adjunto/… (reenviar)
   datos?: Uint8Array // pegado como datos
 }
 
@@ -155,7 +155,7 @@ export interface Instancia {
   esInvitacion: boolean
   mensaje: string | null // el correo que la trajo (o del que se creó)
   repite: boolean
-  propio: boolean // creado en TuxMail: se puede editar y borrar
+  propio: boolean // creado en NimboMail: se puede editar y borrar
   avisos: number[] // minutos antes del inicio
 }
 
@@ -189,6 +189,6 @@ export interface Suscripcion {
   sinLeer: number
   aLaVista: number // los que no están en la papelera ni en spam
   metodo: 'un-clic' | 'correo' | 'web' // cómo se daría de baja
-  bajaFecha: number | null // cuándo se pidió la baja desde TuxMail
+  bajaFecha: number | null // cuándo se pidió la baja desde NimboMail
   bajaMetodo: string | null
 }

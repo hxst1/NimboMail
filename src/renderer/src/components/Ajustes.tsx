@@ -172,13 +172,13 @@ export function Ajustes(p: {
                         onClick={async () => {
                           await api.quitarCuenta(c.id)
                           setQuitando(null)
-                          p.avisar(`«${c.nombre}» quitada de TuxMail`)
+                          p.avisar(`«${c.nombre}» quitada de NimboMail`)
                         }}
                       >
                         ¿Seguro? Quitar
                       </button>
                     ) : (
-                      <button className="aj-boton" title="Quitar de TuxMail (el correo sigue en el servidor)" onClick={() => setQuitando(c.id)}>
+                      <button className="aj-boton" title="Quitar de NimboMail (el correo sigue en el servidor)" onClick={() => setQuitando(c.id)}>
                         <Trash size={14} />
                       </button>
                     )}
@@ -219,7 +219,7 @@ export function Ajustes(p: {
                   <div className="aj-cuenta-datos">
                     <b>{c.nombre}</b>
                     <span>
-                      {c.tipo === 'invitaciones' ? 'Invitaciones recibidas por correo' : c.tipo === 'propio' ? 'Tus eventos y notas, creados en TuxMail' : 'Calendario suscrito (iCal)'}
+                      {c.tipo === 'invitaciones' ? 'Invitaciones recibidas por correo' : c.tipo === 'propio' ? 'Tus eventos y notas, creados en NimboMail' : 'Calendario suscrito (iCal)'}
                       {c.error ? ` · error: ${c.error}` : c.actualizado ? ` · actualizado ${new Date(c.actualizado).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
                     </span>
                   </div>
@@ -247,16 +247,16 @@ export function Ajustes(p: {
                 resto toma el color de su calendario.
               </p>
               <p className="aj-nota">
-                Para suscribirte a otro calendario, pulsa «+» en la vista Calendario. Las reuniones se exportan a ~/.local/share/tuxmail/calendario.ics para otros calendarios del escritorio.
+                Para suscribirte a otro calendario, pulsa «+» en la vista Calendario. Las reuniones se exportan a ~/.local/share/nimbomail/calendario.ics para otros calendarios del escritorio.
               </p>
             </>
           )}
 
           {seccion === 'acerca' && (
             <>
-              <h2>TuxMail</h2>
+              <h2>NimboMail</h2>
               <p className="aj-nota">Cliente de correo para Linux: rápido, minimalista y privado. Software libre bajo la licencia GNU GPL v3 o posterior.</p>
-              <button className="aj-boton" onClick={() => api.abrirEnlace('https://github.com/hxst1/tuxmail')}>
+              <button className="aj-boton" onClick={() => api.abrirEnlace('https://github.com/hxst1/nimbomail')}>
                 Código fuente en GitHub
               </button>
             </>

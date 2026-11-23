@@ -81,8 +81,8 @@ const ESTILO_IFRAME = `
 `
 
 // La CSP no deja salir nada a internet: las imágenes remotas ya vienen reescritas a
-// tuxmail://remoto/… y las sirve el principal desde su caché (como la protección de Mail).
-const CABEZA = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob: tuxmail:"><base target="_blank"><style>${ESTILO_IFRAME}</style>`
+// nimbomail://remoto/… y las sirve el principal desde su caché (como la protección de Mail).
+const CABEZA = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob: nimbomail:"><base target="_blank"><style>${ESTILO_IFRAME}</style>`
 
 // HTML ya saneado y con las citas plegadas, por mensaje: volver a un correo no repite el trabajo.
 const preparados = new Map<string, string>()
@@ -187,7 +187,7 @@ function HtmlAislado({
             onImagen(i.currentSrc || i.src, srcs)
           }),
         )
-        // Clic derecho dentro del correo: el menú de TuxMail, en coordenadas de la ventana.
+        // Clic derecho dentro del correo: el menú de NimboMail, en coordenadas de la ventana.
         d.addEventListener('contextmenu', (e) => {
           e.preventDefault()
           const r = marco.current?.getBoundingClientRect()
@@ -325,8 +325,8 @@ function Tarjeta(p: {
   useEffect(() => {
     if (!p.abierta || !ingles) return
     const alternar = () => (estadoTrad.current === 'traducido' ? verOriginal() : traducir())
-    window.addEventListener('tuxmail:traducir', alternar)
-    return () => window.removeEventListener('tuxmail:traducir', alternar)
+    window.addEventListener('nimbomail:traducir', alternar)
+    return () => window.removeEventListener('nimbomail:traducir', alternar)
   })
 
   // Con «Traducir siempre», en cuanto el correo está pintado (o es de texto plano).
@@ -367,7 +367,7 @@ function Tarjeta(p: {
         { etiqueta: 'Copiar', icono: <Copy size={15} />, atajo: 'Ctrl C', accion: () => api.copiarTexto(sel) },
         { etiqueta: 'Traducir al español', icono: <Translate size={15} />, accion: () => ui.traducirSeleccion(x, y, sel) },
         '-',
-        { etiqueta: 'Buscar en TuxMail', icono: <MagnifyingGlass size={15} />, accion: () => ui.buscar(sel) },
+        { etiqueta: 'Buscar en NimboMail', icono: <MagnifyingGlass size={15} />, accion: () => ui.buscar(sel) },
         { etiqueta: `Buscar «${corto}» en la web`, icono: <Globe size={15} />, accion: () => api.buscarWeb(sel) },
       )
     }

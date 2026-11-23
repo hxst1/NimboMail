@@ -11,7 +11,7 @@ import { app, BrowserWindow, clipboard, ClipboardItem, dialog, nativeImage, shel
 import { rutaAdjunto } from './adjuntos'
 import { DIR_REMOTO, type Remotas } from './remoto'
 
-const DIR_TEMPORAL = join(homedir(), '.cache', 'tuxmail', 'portapapeles')
+const DIR_TEMPORAL = join(homedir(), '.cache', 'nimbomail', 'portapapeles')
 // Formatos del sistema tal cual (Electron 45: clipboard asíncrono con ClipboardItem).
 const crudo = (f: string) => `electron application/osclipboard;format="${f}"`
 
@@ -35,7 +35,7 @@ const EXTENSIONES: Record<string, string> = {
 export class Portapapeles {
   constructor(private remotas: Remotas) {}
 
-  /** Bytes de un recurso del correo: data:, tuxmail://adjunto/… o tuxmail://remoto/… */
+  /** Bytes de un recurso del correo: data:, nimbomail://adjunto/… o nimbomail://remoto/… */
   async leer(url: string): Promise<{ datos: Buffer; nombre: string; tipo: string; ruta?: string } | null> {
     const data = url.match(/^data:([^;,]+)?(;base64)?,(.*)$/s)
     if (data) {
@@ -43,12 +43,12 @@ export class Portapapeles {
       const datos = data[2] ? Buffer.from(data[3], 'base64') : Buffer.from(decodeURIComponent(data[3]))
       return { datos, tipo, nombre: `imagen.${EXTENSIONES[tipo] ?? 'bin'}` }
     }
-    const adj = url.match(/^tuxmail:\/\/adjunto\/([0-9a-f]{20})\/(\d+)$/)
+    const adj = url.match(/^nimbomail:\/\/adjunto\/([0-9a-f]{20})\/(\d+)$/)
     if (adj) {
       const r = await rutaAdjunto(adj[1], adj[2])
       return r ? { datos: await readFile(r.ruta), nombre: r.nombre, tipo: '', ruta: r.ruta } : null
     }
-    const rem = url.match(/^tuxmail:\/\/remoto\/([0-9a-f]{32})$/)
+    const rem = url.match(/^nimbomail:\/\/remoto\/([0-9a-f]{32})$/)
     if (rem && (await this.remotas.descargar(rem[1]))) {
       const ruta = join(DIR_REMOTO, rem[1])
       const tipo = this.remotas.tipo(rem[1]) ?? 'image/png'
@@ -106,7 +106,7 @@ export class Portapapeles {
     return true
   }
 
-  /** Abre con la aplicación predeterminada (para editar fuera de TuxMail). */
+  /** Abre con la aplicación predeterminada (para editar fuera de NimboMail). */
   async abrir(url: string, nombre?: string) {
     const error = await shell.openPath(await this.conNombre(url, nombre))
     if (error) throw new Error(error)

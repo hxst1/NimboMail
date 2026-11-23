@@ -1,5 +1,5 @@
 // Imágenes remotas con protección de privacidad: el principal las descarga cuando llega el correo (no al
-// abrirlo), sin cookies ni Referer, y el correo las ve desde la caché por tuxmail://remoto/<suma>.
+// abrirlo), sin cookies ni Referer, y el correo las ve desde la caché por nimbomail://remoto/<suma>.
 // El iframe del correo nunca sale a internet; los píxeles de rastreo no se descargan nunca.
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -9,11 +9,11 @@ import { join } from 'node:path'
 import { nativeImage } from 'electron'
 import type { Db } from './db'
 
-export const DIR_REMOTO = join(homedir(), '.cache', 'tuxmail', 'remoto')
+export const DIR_REMOTO = join(homedir(), '.cache', 'nimbomail', 'remoto')
 const MAX_BYTES = 5 * 1024 * 1024
 const ESPERA_MS = 10_000
 const EN_PARALELO = 4
-// Un navegador cualquiera: que no se distinga a TuxMail del resto.
+// Un navegador cualquiera: que no se distinga a NimboMail del resto.
 const AGENTE = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
 export const GIF_VACIO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
@@ -49,7 +49,7 @@ export class Remotas {
   constructor(private db: Db) {}
 
   /**
-   * Cambia cada imagen remota por tuxmail://remoto/<suma> y apunta la URL para descargarla.
+   * Cambia cada imagen remota por nimbomail://remoto/<suma> y apunta la URL para descargarla.
    * Los píxeles de rastreo (por servicio conocido o por tamaño) se quedan en un GIF vacío.
    */
   reescribir(html: string): { html: string; sumas: string[] } {
@@ -60,7 +60,7 @@ export class Remotas {
       const s = suma(url)
       this.db.apuntarRemota(s, url)
       sumas.add(s)
-      return `tuxmail://remoto/${s}`
+      return `nimbomail://remoto/${s}`
     }
 
     // 1. <img> enteros: los píxeles por tamaño o invisibles, fuera antes de nada.
@@ -156,7 +156,7 @@ export class Remotas {
     return this.db.remota(s)?.tipo ?? null
   }
 
-  /** Para el protocolo tuxmail://remoto/<suma>: de la caché, o se descarga al momento. */
+  /** Para el protocolo nimbomail://remoto/<suma>: de la caché, o se descarga al momento. */
   async servir(s: string): Promise<Response> {
     if (!/^[0-9a-f]{32}$/.test(s)) return new Response('No encontrado', { status: 404 })
     const ok = await this.descargar(s)

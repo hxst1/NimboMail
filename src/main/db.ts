@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS traducciones (
   html TEXT NOT NULL
 );
 
--- Imágenes remotas de los correos: la URL de cada suma (tuxmail://remoto/<suma>).
+-- Imágenes remotas de los correos: la URL de cada suma (nimbomail://remoto/<suma>).
 -- estado: 0 sin bajar, 1 en caché, 2 no se pudo o no es imagen (no se reintenta).
 CREATE TABLE IF NOT EXISTS remotos (
   suma TEXT PRIMARY KEY,
@@ -607,7 +607,7 @@ export class Db {
       .all() as { id: string; adjuntos: string; cuenta: string }[]
   }
 
-  /** Borra de la caché todo lo de una cuenta (al quitarla de TuxMail). */
+  /** Borra de la caché todo lo de una cuenta (al quitarla de NimboMail). */
   borrarCuenta(cuenta: string) {
     this.transaccion(() => {
       this.sql.prepare('DELETE FROM buscar WHERE id IN (SELECT id FROM mensajes WHERE cuenta = ?)').run(cuenta)

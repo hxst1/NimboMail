@@ -6,14 +6,15 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Servicio } from './servicio'
 import { rutaAdjunto } from './adjuntos'
+import { migrarDeTuxMail } from './migracion'
 import { modeloListo, prepararTraductor, servirTraductor } from './traductor'
 
 // Caché de compilación de V8 para el código del principal: arranques más rápidos.
 enableCompileCache?.()
 
-// El app_id de Wayland sale del nombre del .desktop: así Hyprland (y el icono de waybar) ven «tuxmail».
-process.env.CHROME_DESKTOP = 'tuxmail.desktop'
-app.setName('tuxmail')
+// El app_id de Wayland sale del nombre del .desktop: así Hyprland (y el icono de waybar) ven «nimbomail».
+process.env.CHROME_DESKTOP = 'nimbomail.desktop'
+app.setName('nimbomail')
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
 // La interfaz es en español: fechas dd/mm/aaaa y horas de 24 h en los campos de fecha y hora.
 app.commandLine.appendSwitch('lang', 'es-ES')
@@ -21,14 +22,21 @@ app.commandLine.appendSwitch('lang', 'es-ES')
 const demo = process.argv.includes('--demo')
 // CORREO_CAPTURA=/ruta.png: renderiza oculta, guarda una captura y sale (para revisar el diseño).
 const captura = process.env.CORREO_CAPTURA
-// Las capturas usan su propia carpeta de datos para no chocar con una TuxMail abierta.
-if (captura) app.setPath('userData', join(app.getPath('temp'), 'tuxmail-captura'))
+// Las capturas usan su propia carpeta de datos para no chocar con una NimboMail abierta.
+if (captura) app.setPath('userData', join(app.getPath('temp'), 'nimbomail-captura'))
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'tuxmail', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+  { scheme: 'nimbomail', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ])
 
-// Una sola TuxMail: si se vuelve a lanzar, se trae al frente la que ya está abierta.
+// Antes se llamaba TuxMail: la primera vez se traen sus datos (antes de crear el candado de instancia única).
+if (!demo && !captura && !migrarDeTuxMail()) {
+  dialog.showErrorBox('Cierra TuxMail', 'TuxMail ahora se llama NimboMail. Sal de TuxMail del todo (Ctrl+Q o desde la bandeja) y vuelve a abrir NimboMail: tus cuentas y tu correo se pasarán solos.')
+  app.exit(1)
+  process.exit(1)
+}
+
+// Una sola NimboMail: si se vuelve a lanzar, se trae al frente la que ya está abierta.
 if (!captura && !app.requestSingleInstanceLock()) {
   app.quit()
   process.exit(0)
@@ -37,7 +45,7 @@ if (!captura && !app.requestSingleInstanceLock()) {
 const servicio = new Servicio(app.getPath('userData'), demo)
 let saliendo = false // true al salir de verdad (Salir, Ctrl+Q): si no, cerrar la ventana la oculta
 let bandeja: Tray | null = null
-const ICONO = join(import.meta.dirname, '../../resources/tuxmail.png')
+const ICONO = join(import.meta.dirname, '../../resources/nimbomail.png')
 
 const ventana = () => BrowserWindow.getAllWindows()[0] as BrowserWindow | undefined
 function mostrar() {
@@ -52,7 +60,7 @@ function abrirMailto(url: string) {
   mostrar()
   const w = ventana()
   if (!w) return
-  const enviar = () => w.webContents.send('tuxmail:accion', url)
+  const enviar = () => w.webContents.send('nimbomail:accion', url)
   if (w.webContents.isLoading()) w.webContents.once('did-finish-load', () => setTimeout(enviar, 400))
   else enviar()
 }
@@ -150,8 +158,8 @@ function crearVentana(): BrowserWindow {
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
-    title: 'TuxMail',
-    icon: join(import.meta.dirname, '../../resources/tuxmail.png'),
+    title: 'NimboMail',
+    icon: join(import.meta.dirname, '../../resources/nimbomail.png'),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
@@ -275,7 +283,7 @@ function crearVentana(): BrowserWindow {
   } else {
     // Con --oculto (arranque con la sesión) se queda solo en la bandeja.
     win.once('ready-to-show', () => !process.argv.includes('--oculto') && win.show())
-    // Cerrar la ventana no cierra TuxMail: sigue en la bandeja para el correo nuevo y los avisos.
+    // Cerrar la ventana no cierra NimboMail: sigue en la bandeja para el correo nuevo y los avisos.
     win.on('close', (e) => {
       if (saliendo || !bandeja) return
       e.preventDefault()
@@ -304,7 +312,7 @@ function crearVentana(): BrowserWindow {
   return win
 }
 
-ipcMain.handle('tuxmail', async (_e, metodo: keyof typeof API, ...args: unknown[]) => {
+ipcMain.handle('nimbomail', async (_e, metodo: keyof typeof API, ...args: unknown[]) => {
   const fn = API[metodo] as ((...a: unknown[]) => unknown) | undefined
   if (!fn) throw new Error(`Método desconocido: ${String(metodo)}`)
   return fn(...args)
@@ -312,31 +320,31 @@ ipcMain.handle('tuxmail', async (_e, metodo: keyof typeof API, ...args: unknown[
 
 const aTodas = (canal: string, ...args: unknown[]) =>
   BrowserWindow.getAllWindows().forEach((w) => w.webContents.send(canal, ...args))
-servicio.on('cambios', () => aTodas('tuxmail:cambios'))
-servicio.on('parche', (p: unknown) => aTodas('tuxmail:parche', p))
-servicio.on('calendario', () => aTodas('tuxmail:calendario'))
+servicio.on('cambios', () => aTodas('nimbomail:cambios'))
+servicio.on('parche', (p: unknown) => aTodas('nimbomail:parche', p))
+servicio.on('calendario', () => aTodas('nimbomail:calendario'))
 
 // Avisos del calendario: notificación del sistema (sale en la isla). Al pulsarla, el calendario en ese día.
 servicio.calendario.on('aviso', (a: { titulo: string; cuerpo: string; inicio: number }) => {
   if (captura) return console.log('[captura] aviso:', a.titulo, '·', a.cuerpo) // en pruebas, al registro
   if (!Notification.isSupported()) return
-  const n = new Notification({ title: a.titulo, body: a.cuerpo, icon: join(import.meta.dirname, '../../resources/tuxmail.png') })
+  const n = new Notification({ title: a.titulo, body: a.cuerpo, icon: join(import.meta.dirname, '../../resources/nimbomail.png') })
   n.on('click', () => {
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) return
     if (win.isMinimized()) win.restore()
     win.show()
     win.focus()
-    win.webContents.send('tuxmail:ir-a-dia', a.inicio)
+    win.webContents.send('nimbomail:ir-a-dia', a.inicio)
   })
   n.show()
 })
-servicio.on('error', (texto: string) => aTodas('tuxmail:error', texto))
+servicio.on('error', (texto: string) => aTodas('nimbomail:error', texto))
 
 app.whenReady().then(() => {
-  // tuxmail://adjunto/<carpeta>/<índice> → archivo de la caché de adjuntos.
-  // tuxmail://remoto/<suma> → imagen remota de un correo, de la caché (o descargada ahora por el principal).
-  protocol.handle('tuxmail', async (req) => {
+  // nimbomail://adjunto/<carpeta>/<índice> → archivo de la caché de adjuntos.
+  // nimbomail://remoto/<suma> → imagen remota de un correo, de la caché (o descargada ahora por el principal).
+  protocol.handle('nimbomail', async (req) => {
     const url = new URL(req.url)
     const [carpeta, indice] = url.pathname.replace(/^\//, '').split('/')
     if (url.hostname === 'remoto') return servicio.remotas.servir(carpeta)
@@ -363,19 +371,19 @@ function crearBandeja() {
     console.error('[bandeja] no se pudo crear:', (e as Error).message)
     return
   }
-  bandeja.setToolTip('TuxMail')
+  bandeja.setToolTip('NimboMail')
   const accion = (a: string) => {
     mostrar()
-    ventana()?.webContents.send('tuxmail:accion', a)
+    ventana()?.webContents.send('nimbomail:accion', a)
   }
   bandeja.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Abrir TuxMail', click: () => mostrar() },
+      { label: 'Abrir NimboMail', click: () => mostrar() },
       { label: 'Obtener correo nuevo', click: () => servicio.sincronizar().catch(() => {}) },
       { label: 'Mensaje nuevo', click: () => accion('redactar') },
       { type: 'separator' },
       {
-        label: 'Salir de TuxMail',
+        label: 'Salir de NimboMail',
         click: () => {
           saliendo = true
           app.quit()
@@ -399,26 +407,26 @@ function actualizarBandeja() {
   avisoBandeja = setTimeout(() => {
     avisoBandeja = null
     const n = servicio.contadores()['todas:inbox'] ?? 0
-    bandeja?.setToolTip(n ? `TuxMail · ${n} sin leer` : 'TuxMail')
+    bandeja?.setToolTip(n ? `NimboMail · ${n} sin leer` : 'NimboMail')
   }, 500)
 }
 servicio.on('cambios', actualizarBandeja)
 servicio.on('parche', actualizarBandeja)
 
-/** La primera vez que se cierra la ventana, se explica que TuxMail sigue en la bandeja. */
+/** La primera vez que se cierra la ventana, se explica que NimboMail sigue en la bandeja. */
 function avisarBandeja() {
   const marca = join(app.getPath('userData'), '.bandeja-avisada')
   if (existsSync(marca) || !Notification.isSupported()) return
   writeFileSync(marca, '')
   new Notification({
-    title: 'TuxMail sigue en la bandeja',
+    title: 'NimboMail sigue en la bandeja',
     body: 'Para que te lleguen el correo nuevo y los avisos. Para salir del todo: clic derecho en el icono → Salir, o Ctrl+Q.',
     icon: ICONO,
   }).show()
 }
 
 app.on('window-all-closed', () => {
-  if (!bandeja || saliendo) app.quit() // con bandeja, TuxMail sigue en marcha
+  if (!bandeja || saliendo) app.quit() // con bandeja, NimboMail sigue en marcha
 })
 app.on('before-quit', () => {
   saliendo = true

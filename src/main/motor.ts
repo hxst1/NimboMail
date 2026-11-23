@@ -274,7 +274,7 @@ export class Motor extends EventEmitter {
       this.sincronizando.delete(ruta)
     }
     if (cambiado || nuevos.length) this.emitir({ tipo: 'cambios' })
-    if (nuevos.length || process.env.TUXMAIL_LOG) console.log(`[${cuenta}] ${ruta}: ${nuevos.length} nuevos en ${Date.now() - t0} ms`)
+    if (nuevos.length || process.env.NIMBOMAIL_LOG) console.log(`[${cuenta}] ${ruta}: ${nuevos.length} nuevos en ${Date.now() - t0} ms`)
     const guardada = this.db.carpeta(cuenta, ruta)
     if (nuevos.length && guardada?.rol === 'inbox' && !this.primeraVez) {
       const ids = nuevos.map((u) => idMensaje(cuenta, ruta, u))
@@ -590,7 +590,7 @@ export class Motor extends EventEmitter {
    * 90 días, del más nuevo al más antiguo y en lotes de 30, soltando la carpeta entre lote y lote.
    */
   async precargar() {
-    if (process.env.TUXMAIL_SIN_PRECARGA) return // para medir la apertura en frío
+    if (process.env.NIMBOMAIL_SIN_PRECARGA) return // para medir la apertura en frío
     if (this.precargando) {
       this.otraVuelta = true
       return

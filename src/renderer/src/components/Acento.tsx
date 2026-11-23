@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-// Los colores de resaltado de TuxMail. Plata = Niebla, el de por defecto.
+// Los colores de resaltado de NimboMail. Plata = Niebla, el de por defecto.
 export const ACENTOS = [
   { id: 'plata', nombre: 'Plata (Niebla)', color: '#c8ccd0' },
   { id: 'azul', nombre: 'Azul', color: '#4f8fe6' },

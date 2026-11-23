@@ -1,8 +1,8 @@
 {
-  "name": "tuxmail",
+  "name": "nimbomail",
   "version": "0.1.0",
   "private": true,
-  "description": "TuxMail: cliente de correo para Linux, rápido, minimalista y privado",
+  "description": "NimboMail: cliente de correo para Linux, rápido, minimalista y privado",
   "license": "GPL-3.0-or-later",
   "author": "hxst1",
   "main": "out/main/index.js",
@@ -41,11 +41,11 @@
     "virtua": "^0.54.2",
     "vite": "^8.3.8"
   },
-  "productName": "TuxMail",
+  "productName": "NimboMail",
   "build": {
-    "appId": "io.github.hxst1.tuxmail",
-    "productName": "TuxMail",
-    "executableName": "tuxmail",
+    "appId": "io.github.hxst1.nimbomail",
+    "productName": "NimboMail",
+    "executableName": "nimbomail",
     "asar": false,
     "directories": {
       "output": "dist"
@@ -60,8 +60,8 @@
         "dir"
       ],
       "category": "Network",
-      "icon": "resources/tuxmail.png",
-      "executableName": "tuxmail"
+      "icon": "resources/nimbomail.png",
+      "executableName": "nimbomail"
     }
   }
 }

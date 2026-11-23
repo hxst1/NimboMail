@@ -1,4 +1,4 @@
-// Puente entre TuxMail (la ventana que contiene este iframe) y el worker con el motor.
+// Puente entre NimboMail (la ventana que contiene este iframe) y el worker con el motor.
 // Solo acepta mensajes de la ventana que lo contiene y solo le contesta a ella.
 'use strict'
 const trabajador = new Worker('trabajador.js')

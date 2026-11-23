@@ -12,7 +12,7 @@ type Orden = 'total' | 'recientes' | 'sinLeer'
 
 const METODOS: Record<Suscripcion['metodo'], { texto: string; ayuda: string }> = {
   'un-clic': { texto: 'Baja de un clic', ayuda: 'Se da de baja al momento, sin abrir ninguna web (RFC 8058).' },
-  correo: { texto: 'Baja por correo', ayuda: 'TuxMail manda el correo de baja desde tu cuenta.' },
+  correo: { texto: 'Baja por correo', ayuda: 'NimboMail manda el correo de baja desde tu cuenta.' },
   web: { texto: 'Baja en su web', ayuda: 'Este remitente solo ofrece una página: se abrirá en el navegador.' },
 }
 
@@ -358,7 +358,7 @@ export function Suscripciones({ onCerrar, onVerCorreos }: { onCerrar: () => void
           <div className="su-vacio">
             {lista.length
               ? 'Nada con ese filtro.'
-              : 'Todavía no hay boletines detectados. TuxMail lee la cabecera de baja de cada correo al sincronizar: si acabas de actualizar, puede tardar un poco.'}
+              : 'Todavía no hay boletines detectados. NimboMail lee la cabecera de baja de cada correo al sincronizar: si acabas de actualizar, puede tardar un poco.'}
           </div>
         )}
         {grupos.map((g) => {

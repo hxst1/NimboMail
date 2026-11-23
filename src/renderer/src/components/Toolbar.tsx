@@ -84,7 +84,7 @@ export function Toolbar(p: Props) {
     <header className="toolbar">
       {p.barraOculta && (
         <>
-          <button className="boton-icono cerrar-ventana" title="Cerrar (TuxMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
+          <button className="boton-icono cerrar-ventana" title="Cerrar (NimboMail sigue en la bandeja) · Ctrl+W" onClick={() => api.cerrarVentana()}>
             <X size={16} weight="bold" />
           </button>
           <button className="boton-icono" title="Mostrar barra lateral" onClick={p.onMostrarBarra}>

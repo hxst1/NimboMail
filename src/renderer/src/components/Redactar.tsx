@@ -16,7 +16,7 @@ const textoAHtmlSimple = (t: string) => escapar(t).replace(/\r?\n/g, '<br>')
 const limpiar = (html: string) =>
   DOMPurify.sanitize(html, {
     FORBID_TAGS: ['style', 'script', 'meta', 'link', 'title', 'form', 'input', 'button', 'iframe', 'object', 'embed'],
-    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|cid|tuxmail):|data:image\/|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|cid|nimbomail):|data:image\/|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
   })
 
 const ESTILO_CITA = 'margin:0 0 0 0.8ex;border-left:2px solid #c3c8ce;padding-left:1ex;color:#50555b'
@@ -296,7 +296,7 @@ export function Redactar({
     }
   }
 
-  // ---- adjuntos: botón, pegar (archivos, imágenes, archivos copiados en Nautilus o en TuxMail) y arrastrar
+  // ---- adjuntos: botón, pegar (archivos, imágenes, archivos copiados en Nautilus o en NimboMail) y arrastrar
   const anadirAdjuntos = (l: AdjuntoBorrador[]) => {
     if (!l.length) return
     tocar()

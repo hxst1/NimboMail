@@ -62,7 +62,7 @@ export class Smtp {
   }
 
   nuevosIds(c: ConfigCuenta) {
-    return { messageId: `<${randomUUID()}@${c.direccion.split('@')[1] ?? 'tuxmail'}>`, date: new Date() }
+    return { messageId: `<${randomUUID()}@${c.direccion.split('@')[1] ?? 'nimbomail'}>`, date: new Date() }
   }
 
   /** El mensaje entero en RFC 822, con Bcc (para guardarlo en Enviados o en Borradores). */

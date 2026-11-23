@@ -1,5 +1,5 @@
 // Traductor inglés → español en local con Bergamot (el motor de Firefox Translations).
-// El principal solo descarga el modelo de Mozilla y sirve los archivos por tuxmail://traductor/.
+// El principal solo descarga el modelo de Mozilla y sirve los archivos por nimbomail://traductor/.
 // El motor corre en un Web Worker dentro de un iframe con su propio origen, sin acceso a la app:
 // el texto de los correos nunca sale del PC.
 import { createHash } from 'node:crypto'
@@ -9,7 +9,7 @@ import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-const DIR_MODELO = join(homedir(), '.local', 'share', 'tuxmail', 'traduccion', 'en-es')
+const DIR_MODELO = join(homedir(), '.local', 'share', 'nimbomail', 'traduccion', 'en-es')
 const DIR_PAGINA = join(import.meta.dirname, '../../resources/traductor')
 const DIR_MOTOR = join(dirname(createRequire(import.meta.url).resolve('@browsermt/bergamot-translator/package.json')), 'worker')
 const AJUSTES = 'https://firefox.settings.services.mozilla.com/v1'
@@ -72,7 +72,7 @@ const TIPOS: Record<string, string> = {
   spm: 'application/octet-stream',
 }
 
-/** tuxmail://traductor/<pagina.html|trabajador.js> · motor/<archivo> · modelo/<archivo> */
+/** nimbomail://traductor/<pagina.html|trabajador.js> · motor/<archivo> · modelo/<archivo> */
 export async function servirTraductor(ruta: string): Promise<Response> {
   const partes = ruta.replace(/^\/+/, '').split('/')
   let archivo: string | null = null
