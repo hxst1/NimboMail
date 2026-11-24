@@ -17,6 +17,7 @@ import { Suscripciones } from '@/components/Suscripciones'
 import { EditorEvento, type NuevoEvento } from '@/components/EditorEvento'
 import type { Instancia } from '@shared/tipos'
 import { useAcento } from '@/components/Acento'
+import { guardarPreferencia, leerPreferencia as leerGuardada } from '@/preferencias'
 import { Ajustes } from '@/components/Ajustes'
 import { miles } from '@/formato'
 import { useIdioma, useT } from '@/i18n'
@@ -26,19 +27,7 @@ import {
 } from '@/components/MenuContextual'
 
 function leerPreferencia<T extends string>(clave: string, porDefecto: T): T {
-  try {
-    return (localStorage.getItem(clave) as T) || porDefecto
-  } catch {
-    return porDefecto
-  }
-}
-
-function guardarPreferencia(clave: string, valor: string) {
-  try {
-    localStorage.setItem(clave, valor)
-  } catch {
-    /* sin almacenamiento: da igual */
-  }
+  return (leerGuardada(clave) as T) || porDefecto
 }
 
 function tituloDe(d: Datos, b: Buzon, t: Textos): string {
@@ -81,7 +70,7 @@ export function App() {
   // Lo que se ha ocultado de la barra lateral (favoritos y carpetas), en este equipo.
   const [ocultos, setOcultos] = useState<Set<string>>(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem('barraOcultos') ?? '[]') as string[])
+      return new Set(JSON.parse(leerGuardada('barraOcultos') ?? '[]') as string[])
     } catch {
       return new Set()
     }

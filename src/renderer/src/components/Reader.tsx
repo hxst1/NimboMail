@@ -14,16 +14,11 @@ import { api } from '@/estado'
 import { iniciarTraductor, traducirArbol, traducirTexto } from '@/traductor'
 import { esIngles, textoDeHtml } from '@/traductor/idioma'
 import { useIdioma, useT } from '@/i18n'
+import { leerPreferencia } from '@/preferencias'
 
 /** «Traducir siempre los correos en inglés» (menú «···»). */
 export const TRADUCIR_SIEMPRE = 'traducirSiempre'
-const traducirSiempre = () => {
-  try {
-    return localStorage.getItem(TRADUCIR_SIEMPRE) === '1'
-  } catch {
-    return false
-  }
-}
+const traducirSiempre = () => leerPreferencia(TRADUCIR_SIEMPRE) === '1'
 
 export interface ElementoVista {
   url: string
@@ -83,7 +78,7 @@ const ESTILO_IFRAME = `
 
 // La CSP no deja salir nada a internet: las imágenes remotas ya vienen reescritas a
 // nimbomail://remoto/… y las sirve el principal desde su caché (como la protección de Mail).
-const CABEZA = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob: nimbomail:"><base target="_blank"><style>${ESTILO_IFRAME}</style>`
+const CABEZA = `<meta charset="utf-8"><meta name="color-scheme" content="light"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob: nimbomail:"><base target="_blank"><style>${ESTILO_IFRAME}</style>`
 
 // HTML ya saneado y con las citas plegadas, por mensaje: volver a un correo no repite el trabajo.
 const preparados = new Map<string, string>()

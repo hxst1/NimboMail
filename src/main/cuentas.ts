@@ -30,45 +30,50 @@ export interface ConfigCuenta {
   gmail: boolean
 }
 
+/** Una cuenta a partir de su tabla en cuentas.toml (o en una copia de configuración). */
+export function cuentaDeFila(id: string, c: Record<string, unknown>): ConfigCuenta {
+  const imap = String(c.imap)
+  return {
+    id,
+    nombre: String(c.nombre ?? ''),
+    etiqueta: String(c.etiqueta ?? id),
+    direccion: String(c.direccion),
+    usuario: String(c.usuario ?? c.direccion),
+    imap,
+    puerto: Number(c.puerto ?? 993),
+    tlsNombre: c.tls_nombre ? String(c.tls_nombre) : undefined,
+    smtp: String(c.smtp ?? imap),
+    smtpPuerto: Number(c.smtp_puerto ?? 465),
+    auth: (['microsoft', 'google'].includes(String(c.auth)) ? c.auth : 'clave') as TipoAuth,
+    gmail: imap.endsWith('gmail.com'),
+  }
+}
+
+/** La tabla de una cuenta tal como se guarda en cuentas.toml. */
+export function filaDeCuenta(c: ConfigCuenta): Record<string, string | number> {
+  const fila: Record<string, string | number> = {
+    nombre: c.nombre,
+    etiqueta: c.etiqueta,
+    direccion: c.direccion,
+    usuario: c.usuario,
+    imap: c.imap,
+    puerto: c.puerto,
+    smtp: c.smtp,
+    smtp_puerto: c.smtpPuerto,
+    auth: c.auth,
+  }
+  if (c.tlsNombre) fila.tls_nombre = c.tlsNombre
+  return fila
+}
+
 export function leerCuentas(): ConfigCuenta[] {
   if (!existsSync(RUTA_CUENTAS)) return []
   const datos = parse(readFileSync(RUTA_CUENTAS, 'utf8')) as { cuenta?: Record<string, Record<string, unknown>> }
-  return Object.entries(datos.cuenta ?? {}).map(([id, c]) => {
-    const imap = String(c.imap)
-    return {
-      id,
-      nombre: String(c.nombre ?? ''),
-      etiqueta: String(c.etiqueta ?? id),
-      direccion: String(c.direccion),
-      usuario: String(c.usuario ?? c.direccion),
-      imap,
-      puerto: Number(c.puerto ?? 993),
-      tlsNombre: c.tls_nombre ? String(c.tls_nombre) : undefined,
-      smtp: String(c.smtp ?? imap),
-      smtpPuerto: Number(c.smtp_puerto ?? 465),
-      auth: (['microsoft', 'google'].includes(String(c.auth)) ? c.auth : 'clave') as TipoAuth,
-      gmail: imap.endsWith('gmail.com'),
-    }
-  })
+  return Object.entries(datos.cuenta ?? {}).map(([id, c]) => cuentaDeFila(id, c))
 }
 
 export function escribirCuentas(lista: ConfigCuenta[]) {
-  const cuenta: Record<string, Record<string, string | number>> = {}
-  for (const c of lista) {
-    const fila: Record<string, string | number> = {
-      nombre: c.nombre,
-      etiqueta: c.etiqueta,
-      direccion: c.direccion,
-      usuario: c.usuario,
-      imap: c.imap,
-      puerto: c.puerto,
-      smtp: c.smtp,
-      smtp_puerto: c.smtpPuerto,
-      auth: c.auth,
-    }
-    if (c.tlsNombre) fila.tls_nombre = c.tlsNombre
-    cuenta[c.id] = fila
-  }
+  const cuenta = Object.fromEntries(lista.map((c) => [c.id, filaDeCuenta(c)]))
   mkdirSync(dirname(RUTA_CUENTAS), { recursive: true })
   const cabecera = `# ${t().principal.cuentas.cabeceraArchivo}\n\n`
   writeFileSync(RUTA_CUENTAS + '.tmp', cabecera + stringify({ cuenta }) + '\n', { mode: 0o600 })

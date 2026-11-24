@@ -27,7 +27,7 @@ Available in **English** and **Spanish**: it follows your system language and yo
 - **Quick Look** for images and PDFs with the space bar.
 - **Undo** (`Ctrl+Z`) for archive, delete, move and flag.
 - **System tray**: when you close the window NimboMail stays in the tray (StatusNotifierItem, like Slack or Discord) so new mail and reminders keep arriving; from the icon you can open it, check for mail, write a message or quit. `--hidden` starts it in the tray only (for autostart).
-- **Settings** (the gear at the bottom left): language, accent color, layout, translation, accounts, calendars and what shows in the sidebar (favorites and each account's folders; also via right click → "Hide from Sidebar").
+- **Settings** (the gear at the bottom left): language, accent color, layout, translation, accounts, calendars, what shows in the sidebar (favorites and each account's folders; also via right click → "Hide from Sidebar") and a backup of all of it to a file.
 - **Accent colors** to choose from and a dark, sober look (the *Niebla* palette).
 
 | | |
@@ -139,6 +139,7 @@ In a desktop app the client ID isn't a secret: sign-in is protected with PKCE.
 | What | Where |
 |---|---|
 | Accounts | `~/.config/nimbomail/cuentas.toml` |
+| Language and interface settings | `~/.config/nimbomail/preferencias.json` |
 | Passwords and tokens | System keyring (service `nimbomail`) |
 | Local copy of your mail | `~/.config/nimbomail/nimbomail.db` (SQLite) |
 | Attachments and images | `~/.cache/nimbomail/` |
@@ -146,6 +147,8 @@ In a desktop app the client ID isn't a secret: sign-in is protected with PKCE.
 | Exported meetings | `~/.local/share/nimbomail/calendario.ics`, so other desktop calendars can show them |
 
 Removing an account in NimboMail deletes its settings, its password and its local copy, but doesn't touch anything on the server.
+
+Updating or reinstalling NimboMail keeps all of this. To move your setup to another computer, use **Settings → Backup → Export Settings**: one JSON file with your accounts (without passwords), language, look, sidebar and calendars, which **Import Settings** restores without removing anything.
 
 ## License
 

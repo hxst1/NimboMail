@@ -7,6 +7,7 @@ export const ajustes: typeof En = {
     barra: 'Barra lateral',
     cuentas: 'Cuentas',
     calendario: 'Calendario',
+    copia: 'Copia de seguridad',
     acerca: 'Acerca de',
   },
   general: {
@@ -59,6 +60,17 @@ export const ajustes: typeof En = {
       'Las reuniones se colorean según su plataforma: Google Meet en verde, Teams en morado, Zoom en azul y Webex en naranja. El resto toma el color de su calendario.',
     notaSuscribir:
       'Para suscribirte a otro calendario, pulsa «+» en la vista Calendario. Las reuniones se exportan a ~/.local/share/nimbomail/calendario.ics para otros calendarios del escritorio.',
+  },
+  copia: {
+    nota: 'Tu configuración vive en ~/.config/nimbomail, así que al actualizar o reinstalar NimboMail se mantiene. Para llevártela a otro equipo, o recuperarla si borras esa carpeta, expórtala a un archivo.',
+    incluye:
+      'El archivo lleva tus cuentas, el idioma, el color de resaltado, la disposición, la barra lateral y los calendarios. No lleva las contraseñas: siguen en el llavero del sistema (en otro equipo, vuelve a ponerlas en Cuentas). Sí lleva los enlaces de los calendarios suscritos, así que guárdalo en un sitio privado.',
+    exportar: 'Exportar configuración…',
+    importar: 'Importar configuración…',
+    exportada: (ruta) => `Configuración guardada en ${ruta}`,
+    importada: (cuentas, calendarios) =>
+      `Configuración importada${cuentas ? ` · ${cuentas} cuenta${cuentas === 1 ? '' : 's'} añadida${cuentas === 1 ? '' : 's'}` : ''}${calendarios ? ` · ${calendarios} calendario${calendarios === 1 ? '' : 's'} añadido${calendarios === 1 ? '' : 's'}` : ''}. Recargando…`,
+    notaImportar: 'Importar nunca quita nada: añade las cuentas y calendarios que falten y aplica el resto de ajustes.',
   },
   acerca: {
     descripcion: 'Cliente de correo para Linux: rápido, minimalista y privado. Software libre bajo la licencia GNU GPL v3 o posterior.',

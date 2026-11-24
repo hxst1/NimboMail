@@ -2,4 +2,9 @@ allowBuilds:
   electron: true
   esbuild: true
   electron-winstaller: false # solo sirve para Windows
-  usocket: false # nativo y opcional: dbus-next usa net de Node si no está
+
+# usocket es opcional en dbus-next y nativo: electron-builder lo compila al empaquetar y con el Node de
+# Electron revienta («util.isError is not a function») en cuanto se habla con el llavero. Sin él,
+# dbus-next usa el socket normal de Node.
+ignoredOptionalDependencies:
+  - usocket

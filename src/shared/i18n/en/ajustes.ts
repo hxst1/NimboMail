@@ -6,6 +6,7 @@ export const ajustes = {
     barra: 'Sidebar',
     cuentas: 'Accounts',
     calendario: 'Calendar',
+    copia: 'Backup',
     acerca: 'About',
   },
   general: {
@@ -59,6 +60,17 @@ export const ajustes = {
       "Meetings are colored by platform: Google Meet in green, Teams in purple, Zoom in blue and Webex in orange. Everything else uses its calendar's color.",
     notaSuscribir:
       'To subscribe to another calendar, click "+" in Calendar view. Meetings are exported to ~/.local/share/nimbomail/calendario.ics for other desktop calendars.',
+  },
+  copia: {
+    nota: 'Your settings live in ~/.config/nimbomail, so updating or reinstalling NimboMail keeps them. To move them to another computer, or restore them after deleting that folder, export them to a file.',
+    incluye:
+      'The file has your accounts, language, accent color, layout, sidebar and calendars. Passwords are not included: they stay in the system keyring (on another computer, enter them again in Accounts). It does include the links of subscribed calendars, so keep it somewhere private.',
+    exportar: 'Export Settings…',
+    importar: 'Import Settings…',
+    exportada: (ruta: string) => `Settings saved to ${ruta}`,
+    importada: (cuentas: number, calendarios: number) =>
+      `Settings imported${cuentas ? ` · ${cuentas} account${cuentas === 1 ? '' : 's'} added` : ''}${calendarios ? ` · ${calendarios} calendar${calendarios === 1 ? '' : 's'} added` : ''}. Reloading…`,
+    notaImportar: 'Importing never removes anything: it adds the accounts and calendars you are missing and applies the rest of the settings.',
   },
   acerca: {
     descripcion: 'An email client for Linux: fast, minimal and private. Free software under the GNU GPL v3 or later.',

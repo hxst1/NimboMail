@@ -16,6 +16,16 @@ export const principal = {
       'TuxMail is now called NimboMail. Quit TuxMail completely (Ctrl+Q or from the tray) and open NimboMail again: your accounts and mail will move over automatically.',
   },
   adjuntarArchivos: 'Attach Files',
+  // Copia de la configuración (Ajustes → Backup).
+  configuracion: {
+    exportarTitulo: 'Export NimboMail Settings',
+    importarTitulo: 'Import NimboMail Settings',
+    nombreArchivo: (fecha: string) => `nimbomail-settings-${fecha}.json`,
+    filtro: 'NimboMail settings',
+    ilegible: "Couldn't read the file: it isn't a valid settings backup",
+    noEsCopia: "This file isn't a NimboMail settings backup",
+    masNueva: 'This backup comes from a newer NimboMail: update the app first',
+  },
   // Nombre de reserva cuando un archivo no trae el suyo.
   nombres: {
     adjunto: 'attachment',

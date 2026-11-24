@@ -9,6 +9,8 @@ import { rutaAdjunto } from './adjuntos'
 import { migrarDeTuxMail } from './migracion'
 import { estadoIdioma, idiomas, iniciarIdioma, ponerIdioma, t } from './idioma'
 import { modeloListo, prepararTraductor, servirTraductor } from './traductor'
+import { exportar, importar } from './configuracion'
+import { interfaz, ponerInterfaz } from './preferencias'
 
 // Caché de compilación de V8 para el código del principal: arranques más rápidos.
 enableCompileCache?.()
@@ -147,6 +149,32 @@ const API = {
     app.quit()
   },
   ponerIdioma: (p: Parameters<typeof ponerIdioma>[0]) => ponerIdioma(p),
+  ponerInterfaz: (clave: string, valor: string) => ponerInterfaz(clave, valor),
+  // Copia de la configuración: devuelve la ruta elegida (o null si se cancela el diálogo).
+  exportarConfiguracion: async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const tc = t().principal.configuracion
+    const r = await dialog.showSaveDialog(win, {
+      title: tc.exportarTitulo,
+      defaultPath: join(app.getPath('home'), tc.nombreArchivo(new Date().toISOString().slice(0, 10))),
+      filters: [{ name: tc.filtro, extensions: ['json'] }],
+    })
+    if (r.canceled || !r.filePath) return null
+    await exportar(servicio, r.filePath)
+    return r.filePath
+  },
+  importarConfiguracion: async () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const tc = t().principal.configuracion
+    const r = await dialog.showOpenDialog(win, {
+      title: tc.importarTitulo,
+      defaultPath: app.getPath('home'),
+      properties: ['openFile'],
+      filters: [{ name: tc.filtro, extensions: ['json'] }],
+    })
+    if (r.canceled || !r.filePaths[0]) return null
+    return importar(servicio, r.filePaths[0])
+  },
   abrirEnlace: (url: string) => {
     if (typeof url === 'string' && /^(https?|mailto):/.test(url)) shell.openExternal(url)
   },
@@ -329,6 +357,10 @@ const aTodas = (canal: string, ...args: unknown[]) =>
 // El preload pide el idioma de forma síncrona para que la interfaz salga ya en su idioma.
 ipcMain.on('nimbomail:idioma', (e) => {
   e.returnValue = estadoIdioma()
+})
+// Y las preferencias de la interfaz (acento, disposición…), para pintarla bien desde el primer frame.
+ipcMain.on('nimbomail:interfaz', (e) => {
+  e.returnValue = interfaz()
 })
 idiomas.on('cambio', (estado) => {
   aTodas('nimbomail:idioma', estado)

@@ -16,6 +16,15 @@ export const principal: typeof En = {
       'TuxMail ahora se llama NimboMail. Sal de TuxMail del todo (Ctrl+Q o desde la bandeja) y vuelve a abrir NimboMail: tus cuentas y tu correo se pasarán solos.',
   },
   adjuntarArchivos: 'Adjuntar archivos',
+  configuracion: {
+    exportarTitulo: 'Exportar la configuración de NimboMail',
+    importarTitulo: 'Importar la configuración de NimboMail',
+    nombreArchivo: (fecha) => `nimbomail-configuracion-${fecha}.json`,
+    filtro: 'Configuración de NimboMail',
+    ilegible: 'No se ha podido leer el archivo: no es una copia de configuración válida',
+    noEsCopia: 'Este archivo no es una copia de configuración de NimboMail',
+    masNueva: 'Esta copia es de una NimboMail más nueva: actualiza la app primero',
+  },
   nombres: {
     adjunto: 'adjunto',
     archivo: 'archivo',

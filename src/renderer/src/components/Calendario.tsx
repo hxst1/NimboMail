@@ -8,6 +8,7 @@ import { opcionesHora, type Textos } from '@shared/i18n'
 import { api } from '@/estado'
 import { locale, useT } from '@/i18n'
 import { useInterfaz } from '@/components/MenuContextual'
+import { guardarPreferencia, leerPreferencia } from '@/preferencias'
 
 type Modo = 'mes' | 'semana'
 const DIA = 86_400_000
@@ -226,13 +227,7 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
   const t = useT()
   const tc = t.calendario
   const diasSemana = formatos().diasSemana
-  const [modo, setModo] = useState<Modo>(() => {
-    try {
-      return (localStorage.getItem('calendarioModo') as Modo) || 'mes'
-    } catch {
-      return 'mes'
-    }
-  })
+  const [modo, setModo] = useState<Modo>(() => (leerPreferencia('calendarioModo') as Modo) || 'mes')
   const [ancla, setAncla] = useState(() => inicioDia(new Date(irA ?? Date.now()))) // un día del mes o de la semana que se ve
   const [seleccion, setSeleccion] = useState(() => inicioDia(new Date(irA ?? Date.now())))
   const [calendarios, setCalendarios] = useState<CalendarioInfo[]>([])
@@ -291,11 +286,7 @@ export function Calendario({ onCerrar, onAbrirCorreo, irA }: { onCerrar: () => v
   const cambiarModo = (m: Modo) => {
     setModo(m)
     setAncla(seleccion)
-    try {
-      localStorage.setItem('calendarioModo', m)
-    } catch {
-      /* da igual */
-    }
+    guardarPreferencia('calendarioModo', m)
   }
 
   const actualizar = async () => {

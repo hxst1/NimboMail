@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarBlank, Columns, GearSix, Info, Key, Rows, SidebarSimple, Trash, UserCircle, X } from '@phosphor-icons/react'
+import { CalendarBlank, Columns, FloppyDisk, GearSix, Info, Key, Rows, SidebarSimple, Trash, UserCircle, X } from '@phosphor-icons/react'
 import { AVISOS, textoAviso, type CalendarioInfo, type Carpeta, type Cuenta, type Datos } from '@shared/tipos'
 import { IDIOMAS, opcionesHora, type PreferenciaIdioma, type Textos } from '@shared/i18n'
 import { api } from '@/estado'
@@ -8,7 +8,7 @@ import { ACENTOS, SelectorAcento, type AcentoId } from '@/components/Acento'
 import type { Disposicion } from '@/components/Toolbar'
 import { Desplegable } from '@/components/Desplegable'
 
-type Seccion = 'general' | 'barra' | 'cuentas' | 'calendario' | 'acerca'
+type Seccion = 'general' | 'barra' | 'cuentas' | 'calendario' | 'copia' | 'acerca'
 
 // Lo que se puede ocultar de Favoritos y de Buzones inteligentes, con su nombre en el idioma de `t`.
 export const favoritos = (t: Textos): { clave: string; texto: string }[] => [
@@ -56,6 +56,7 @@ export function Ajustes(p: {
   const [calendarios, setCalendarios] = useState<CalendarioInfo[]>([])
   const [quitando, setQuitando] = useState<string | null>(null)
   const [avisoReuniones, setAvisoReuniones] = useState<number | null>(null)
+  const [copiando, setCopiando] = useState(false)
   useEffect(() => {
     api.avisoReuniones().then(setAvisoReuniones, () => {})
   }, [])
@@ -84,6 +85,7 @@ export function Ajustes(p: {
     { id: 'barra', texto: t.ajustes.secciones.barra, icono: SidebarSimple },
     { id: 'cuentas', texto: t.ajustes.secciones.cuentas, icono: UserCircle },
     { id: 'calendario', texto: t.ajustes.secciones.calendario, icono: CalendarBlank },
+    { id: 'copia', texto: t.ajustes.secciones.copia, icono: FloppyDisk },
     { id: 'acerca', texto: t.ajustes.secciones.acerca, icono: Info },
   ]
 
@@ -273,6 +275,53 @@ export function Ajustes(p: {
               ))}
               <p className="aj-nota">{t.ajustes.calendario.notaColores}</p>
               <p className="aj-nota">{t.ajustes.calendario.notaSuscribir}</p>
+            </>
+          )}
+
+          {seccion === 'copia' && (
+            <>
+              <h2>{t.ajustes.secciones.copia}</h2>
+              <p className="aj-nota">{t.ajustes.copia.nota}</p>
+              <div className="aj-grupo aj-botones">
+                <button
+                  className="aj-boton"
+                  disabled={copiando}
+                  onClick={async () => {
+                    setCopiando(true)
+                    try {
+                      const ruta = await api.exportarConfiguracion()
+                      if (ruta) p.avisar(t.ajustes.copia.exportada(ruta))
+                    } catch (e) {
+                      p.avisar((e as Error).message)
+                    } finally {
+                      setCopiando(false)
+                    }
+                  }}
+                >
+                  {t.ajustes.copia.exportar}
+                </button>
+                <button
+                  className="aj-boton"
+                  disabled={copiando}
+                  onClick={async () => {
+                    setCopiando(true)
+                    try {
+                      const r = await api.importarConfiguracion()
+                      if (!r) return setCopiando(false)
+                      p.avisar(t.ajustes.copia.importada(r.cuentas, r.calendarios))
+                      // Las preferencias de la interfaz se leen al arrancar: se recarga la ventana para aplicarlas.
+                      setTimeout(() => location.reload(), 1800)
+                    } catch (e) {
+                      p.avisar((e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
+                      setCopiando(false)
+                    }
+                  }}
+                >
+                  {t.ajustes.copia.importar}
+                </button>
+              </div>
+              <p className="aj-nota">{t.ajustes.copia.incluye}</p>
+              <p className="aj-nota">{t.ajustes.copia.notaImportar}</p>
             </>
           )}
 

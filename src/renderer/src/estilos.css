@@ -746,6 +746,9 @@ button {
   display: block;
   width: 100%;
   border: 0;
+  /* La tarjeta del correo es clara: sin esto el iframe hereda el modo oscuro de la app y los
+     correos con estilos para modo oscuro (Revolut…) pintan el texto blanco sobre blanco. */
+  color-scheme: light;
 }
 
 /* ---------------------------------------------------------------- menú «Más» y color de resaltado */
@@ -3043,4 +3046,15 @@ a.tb-boton {
   min-height: 32px;
   font-size: 13px;
   color: var(--texto);
+}
+
+/* Ajustes → Copia de seguridad: los dos botones en fila. */
+.aj-botones {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.aj-boton:disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }

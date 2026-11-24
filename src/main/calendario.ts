@@ -90,6 +90,12 @@ interface Fila {
 
 const claveSecreto = (id: string) => `calendario:${id}`
 
+/** Lo que el calendario aporta a la copia de configuración. */
+export interface CopiaCalendario {
+  avisoReuniones: number
+  calendarios: { id: string; nombre: string; tipo: CalendarioInfo['tipo']; cuenta: string | null; color: string; visible: boolean; url?: string }[]
+}
+
 export interface AvisoEvento {
   titulo: string
   cuerpo: string
@@ -534,6 +540,70 @@ export class Calendario extends EventEmitter {
   mostrar(id: string, visible: boolean) {
     this.db.sql.prepare('UPDATE calendarios SET visible = ? WHERE id = ?').run(+visible, id)
     this.emit('cambios')
+  }
+
+  // ------------------------------------------------------------ copia de configuración
+
+  /** Calendarios (color, visibilidad y enlace de los suscritos) y aviso por defecto, para exportarlos. */
+  async configuracion(): Promise<CopiaCalendario> {
+    const calendarios: CopiaCalendario['calendarios'] = []
+    for (const c of this.calendarios()) {
+      const fila: CopiaCalendario['calendarios'][number] = { id: c.id, nombre: c.nombre, tipo: c.tipo, cuenta: c.cuenta, color: c.color, visible: c.visible }
+      if (c.tipo === 'ical') {
+        try {
+          fila.url = await secreto(claveSecreto(c.id))
+        } catch {
+          continue // sin enlace en el llavero no se podría volver a suscribir
+        }
+      }
+      calendarios.push(fila)
+    }
+    return { avisoReuniones: this.avisoReuniones(), calendarios }
+  }
+
+  /**
+   * Aplica una copia: el aviso por defecto, las suscripciones que falten (por enlace) y el color y la
+   * visibilidad de cada calendario. Los de invitaciones solo si su cuenta existe. Devuelve cuántas
+   * suscripciones se han añadido; se descargan después, en segundo plano.
+   */
+  async restaurar(d: Partial<CopiaCalendario>, cuentas: Set<string>): Promise<number> {
+    if (typeof d.avisoReuniones === 'number' && Number.isFinite(d.avisoReuniones)) this.ponerAvisoReuniones(d.avisoReuniones)
+    const enlaces = new Map<string, string>() // enlace → id de los ya suscritos
+    for (const c of this.calendarios().filter((x) => x.tipo === 'ical')) {
+      try {
+        enlaces.set((await secreto(claveSecreto(c.id))).trim(), c.id)
+      } catch {}
+    }
+    const nuevas: string[] = []
+    for (const c of Array.isArray(d.calendarios) ? d.calendarios : []) {
+      if (!c || typeof c !== 'object' || typeof c.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(c.color)) continue
+      const nombre = typeof c.nombre === 'string' && c.nombre.trim() ? c.nombre.trim() : t().comun.buzones.calendario
+      let id: string
+      if (c.tipo === 'ical') {
+        const url = typeof c.url === 'string' ? c.url.trim() : ''
+        if (!/^(https?|webcals?):\/\//i.test(url)) continue
+        id = enlaces.get(url) ?? ''
+        if (!id) {
+          id = `ical-${randomBytes(4).toString('hex')}`
+          this.db.sql.prepare("INSERT INTO calendarios (id, nombre, tipo, color) VALUES (?, ?, 'ical', ?)").run(id, nombre, c.color)
+          await guardarSecreto(claveSecreto(id), url)
+          enlaces.set(url, id)
+          nuevas.push(id)
+        }
+      } else if (c.tipo === 'invitaciones') {
+        if (typeof c.cuenta !== 'string' || !cuentas.has(c.cuenta)) continue
+        id = `inv-${c.cuenta}`
+        this.db.sql
+          .prepare("INSERT OR IGNORE INTO calendarios (id, nombre, tipo, cuenta, color) VALUES (?, ?, 'invitaciones', ?, ?)")
+          .run(id, nombre, c.cuenta, c.color)
+      } else if (c.tipo === 'propio') {
+        id = this.asegurarPropio()
+      } else continue
+      this.db.sql.prepare('UPDATE calendarios SET color = ?, visible = ? WHERE id = ?').run(c.color, c.visible === false ? 0 : 1, id)
+    }
+    this.cambiado()
+    for (const id of nuevas) this.actualizar(id).catch(() => {})
+    return nuevas.length
   }
 
   borrarCuenta(cuenta: string) {

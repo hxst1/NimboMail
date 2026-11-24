@@ -10,14 +10,14 @@ import { simpleParser, type AddressObject } from 'mailparser'
 import type { AdjuntoBorrador, Borrador, Buzon, Cuerpo, Datos, DatosRespuesta, Direccion, EstadoCuenta, Mensaje, RolCarpeta, Suscripcion } from '@shared/tipos'
 import { shell } from 'electron'
 import type { InfoBaja } from './baja'
-import { borrarSecreto, escribirCuentas, guardarSecreto, leerCuentas, SinClave, type ConfigCuenta, type TipoAuth } from './cuentas'
+import { borrarSecreto, cuentaDeFila, escribirCuentas, filaDeCuenta, guardarSecreto, leerCuentas, SinClave, type ConfigCuenta, type TipoAuth } from './cuentas'
 import { detectar, probar, type Servidores } from './autoconfig'
 import { iniciarSesion, oauthDisponible, type IdOAuth } from './oauth'
 import { Db, idMensaje } from './db'
 import { Motor, type EventoMotor } from './motor'
 import { Remotas } from './remoto'
 import { leerAdjunto, ponerDescargador } from './adjuntos'
-import { Calendario } from './calendario'
+import { Calendario, type CopiaCalendario } from './calendario'
 import { respuesta as respuestaIcs } from './ics'
 import { Portapapeles } from './portapapeles'
 import { Smtp } from './smtp'
@@ -170,6 +170,48 @@ export class Servicio extends EventEmitter {
     this.arrancarMotor(c)
     this.cambios()
     return id
+  }
+
+  // ------------------------------------------------------------ copia de configuración
+
+  /** Cuentas (sin contraseñas) y calendarios, para la copia de configuración. */
+  async copiaConfiguracion() {
+    return {
+      cuentas: Object.fromEntries(this.cuentas.map((c) => [c.id, filaDeCuenta(c)])),
+      calendario: await this.calendario.configuracion(),
+    }
+  }
+
+  /**
+   * Restaura una copia sin quitar nada: añade las cuentas que falten (por dirección) y aplica los
+   * calendarios. Las contraseñas siguen en el llavero; si no están (otro equipo), la cuenta sale
+   * con «falta la contraseña» y se pone desde Ajustes.
+   */
+  async restaurarConfiguracion(d: { cuentas?: unknown; calendario?: unknown }) {
+    let cuentas = 0
+    if (!this.demo && d.cuentas && typeof d.cuentas === 'object' && !Array.isArray(d.cuentas)) {
+      for (const [idCopia, fila] of Object.entries(d.cuentas as Record<string, unknown>)) {
+        if (!fila || typeof fila !== 'object') continue
+        const f = fila as Record<string, unknown>
+        if (typeof f.direccion !== 'string' || !f.direccion.includes('@') || typeof f.imap !== 'string' || !f.imap) continue
+        const c = cuentaDeFila(idCopia.replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'cuenta', { ...f, direccion: f.direccion.trim().toLowerCase() })
+        if (!Number.isInteger(c.puerto) || !Number.isInteger(c.smtpPuerto)) continue
+        if (this.cuentas.some((x) => x.direccion === c.direccion)) continue
+        // Se conserva el id (las carpetas ocultas y el calendario de invitaciones lo usan) salvo si ya está cogido.
+        const base = c.id
+        for (let n = 2; this.cuentas.some((x) => x.id === c.id); n++) c.id = `${base}-${n}`
+        this.cuentas = [...this.cuentas, c]
+        escribirCuentas(this.cuentas)
+        this.arrancarMotor(c)
+        cuentas++
+      }
+    }
+    const calendarios =
+      d.calendario && typeof d.calendario === 'object'
+        ? await this.calendario.restaurar(d.calendario as Partial<CopiaCalendario>, new Set(this.cuentas.map((c) => c.id)))
+        : 0
+    this.cambios()
+    return { cuentas, calendarios }
   }
 
   /** Quita la cuenta de NimboMail: su configuración, su contraseña y su caché local (nada del servidor). */

@@ -16,7 +16,8 @@ const METODOS: (keyof ApiPrincipal)[] = [
   'calendarios', 'eventos', 'invitacionDe', 'responderInvitacion', 'suscribirCalendario', 'quitarCalendario', 'mostrarCalendario',
   'actualizarCalendarios', 'sincronizar', 'colorCalendario', 'guardarEvento', 'borrarEvento', 'ponerAvisos', 'avisoReuniones',
   'ponerAvisoReuniones', 'suscripciones', 'darseDeBaja', 'darseDeBajaDe', 'limpiarSuscripcion', 'apuntarBaja',
-  'crearCarpeta', 'renombrarCarpeta', 'borrarCarpeta', 'abrirEnlace', 'ponerIdioma',
+  'crearCarpeta', 'renombrarCarpeta', 'borrarCarpeta', 'abrirEnlace', 'ponerIdioma', 'ponerInterfaz', 'exportarConfiguracion',
+  'importarConfiguracion',
 ]
 const llamar = Object.fromEntries(
   METODOS.map((m) => [m, (...args: unknown[]) => ipcRenderer.invoke('nimbomail', m, ...args)]),
@@ -33,6 +34,8 @@ const api = {
   api: llamar,
   // Idioma al arrancar (síncrono: la interfaz sale ya en su idioma) y cada vez que cambia.
   idioma: ipcRenderer.sendSync('nimbomail:idioma') as EstadoIdioma,
+  // Preferencias de la interfaz guardadas en preferencias.json (síncrono, como el idioma).
+  interfaz: ipcRenderer.sendSync('nimbomail:interfaz') as Record<string, string>,
   alIdioma: (fn: (e: EstadoIdioma) => void) => {
     const h = (_e: unknown, estado: EstadoIdioma) => fn(estado)
     ipcRenderer.on('nimbomail:idioma', h)
